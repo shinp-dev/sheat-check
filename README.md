@@ -62,7 +62,7 @@ Project URLと公開anon keyはPagesのビルド環境変数に設定します�
 
 本リポジトリは [Supabase Free](https://supabase.com/pricing) と [Cloudflare Workers Free](https://developers.cloudflare.com/workers/platform/pricing/) の範囲で構成でき、Private Channel / Realtime Authorizationのために有料Planを必須化していません。アプリ、workflow、セットアップ手順に課金・自動Plan移行・クレジットカード登録を要求する処理はありません。利用量が各社の最新Free limitsを超えないかは公式ページで確認してください。
 
-Supabase Free Projectは低アクティビティ時にpauseされる可能性があります。[`supabase-keep-alive.yml`](./.github/workflows/supabase-keep-alive.yml) はRepository Secretsの `SUPABASE_URL` と `SUPABASE_ANON_KEY` を使い、3日ごとに単一ProjectのREST APIへ疎通します。これはpauseの可能性を低減する運用補助であり、成功保証や有料移行を行うものではありません。詳細は[設定手順](./docs/realtime_authorization_setup.md#4-supabase-keep-alive)を参照してください。
+Supabase Free Projectは低アクティビティ時にpauseされる可能性があります。production WorkerにはCloudflare Cron Triggerを設定し、1日3回、Worker内の `SUPABASE_SERVICE_ROLE_KEY` を使ってSupabase Auth Admin APIへ最小のユーザー一覧取得（1件上限）を行います。レスポンス本文は保存・記録せず、実際のSupabaseデータベースアクセスを継続的に発生させます。これはpauseの可能性を低減する運用補助であり、成功保証や有料移行を行うものではありません。詳細は[設定手順](./docs/realtime_authorization_setup.md#4-supabase-keep-alive)を参照してください。
 
 現行コードはSupabaseのlegacy `anon` / `service_role` keyとlegacy JWT secretを使用します。新しいpublishable/secret keyおよびSigning Keysへの移行は将来候補であり、今回の運用要件ではありません。最新情報は[Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys)を確認してください。
 
