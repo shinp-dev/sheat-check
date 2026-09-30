@@ -13,9 +13,9 @@
 | `CFG-SB-01` | WorkerのSupabase relay設定不足 | Cloudflare Worker logs | Worker `SUPABASE_URL`、service role key |
 | `AUTH-T-01` | Teacher認証の代表的障害 | Browser + Worker logs | `JWT_SECRET`、Teacher account、Token期限、rate limit |
 | `DEPLOY-01` | production deploy失敗（Runbook上の分類） | GitHub Actions | install/build/typecheck/test/D1/deployの失敗step |
-| `KEEPALIVE-01` | Supabase Keep Alive失敗（Runbook上の分類） | GitHub Actions | URL/key、Project pause、REST API応答 |
+| `KEEPALIVE-DB-01` | Supabase Keep Alive実クエリ失敗 | Cloudflare Worker logs | Worker `SUPABASE_URL`、service role key、Project pause、Auth Admin API応答 |
 
-`DEPLOY-01` と `KEEPALIVE-01` はworkflowが返すHTTPエラーコードではなく、運用上の検索・分類名です。
+`DEPLOY-01` はworkflowが返すHTTPエラーコードではなく、運用上の検索・分類名です。`KEEPALIVE-DB-01` はWorker Cronの実行失敗を示すログコードです。
 
 ## Browser Console
 
@@ -34,7 +34,7 @@ JWT期限切れが疑われる場合、Teacherは再ログイン、Studentは画
 
 ## Cloudflare Worker logs
 
-対象: `RT-RELAY-*`、`CFG-*`、`AUTH-T-*`、その他Backend API内部障害。
+対象: `RT-RELAY-*`、`CFG-*`、`AUTH-T-*`、`KEEPALIVE-DB-01`、その他Backend API内部障害。
 
 リポジトリルートまたは `packages/backend` から、対象環境の設定を確認して実行します。
 
@@ -50,7 +50,7 @@ Cloudflare Dashboardの **Workers & Pages → 対象Worker → Logs** からも�
 
 ## GitHub Actions
 
-対象: CI、Deploy All、Supabase Keep Alive。
+対象: CI、Deploy All。
 
 1. GitHub Repositoryの **Actions** を開く。
 2. 左側で対象Workflowを選ぶ。
@@ -61,9 +61,9 @@ Cloudflare Dashboardの **Workers & Pages → 対象Worker → Logs** からも�
 
 `Deploy All` はNode 20で `npm ci` → build → typecheck → test → D1 migration → Worker deploy → Pages deployの順です。最初に失敗したStepを直します。D1 migration以降ならCloudflare credentials・binding・対象accountも確認します。ログを共有するときはtokenをマスクします。
 
-### KEEPALIVE-01
+### KEEPALIVE-DB-01
 
-`Supabase Keep Alive` の **Send keep-alive request to Supabase REST API** を確認します。Repository Secrets名は `SUPABASE_URL` と `SUPABASE_ANON_KEY` です。未設定、単一Projectとの不一致、Project pause、REST API障害を確認します。Secretをworkflowへ直書きして再試行しないでください。
+Cloudflare WorkerのCron Triggerは1日3回実行されます。Worker logsで `KEEPALIVE-DB-01` を検索し、`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` の設定、Projectの稼働状態、Auth Admin APIのHTTP statusを確認します。レスポンス本文やCredentialはログへ出しません。
 
 ## 症状別切り分け
 
