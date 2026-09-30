@@ -39,17 +39,15 @@ Teacher画面で、上記の単一Projectと同じProject URLおよびその公�
 
 ## 4. Supabase Keep Alive
 
-Supabase Free Projectは低アクティビティ時にpauseされる可能性があります。[`.github/workflows/supabase-keep-alive.yml`](../.github/workflows/supabase-keep-alive.yml) は3日ごと、および手動実行時に対象単一ProjectのREST APIへ疎通します。
+Supabase Free Projectは低アクティビティ時にpauseされる可能性があります。production WorkerではCloudflare Cron Triggerを使い、1日3回（UTC 00:17 / 08:17 / 16:17）、Supabaseへ小さな実データベースアクセスを発生させます。
 
-GitHub Repositoryの **Settings → Secrets and variables → Actions** に次のRepository Secretsを登録します。
+Keep AliveはWorker内だけにある \`SUPABASE_SERVICE_ROLE_KEY\` を使い、Supabase Auth Admin APIのユーザー一覧を \`page=1&per_page=1\` で取得します。レスポンス本文は解析・保存・ログ出力せず、成功可否だけを確認します。ブラウザやGitHub Actionsへservice role keyを渡しません。
 
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
+Cron Triggerは \`packages/backend/wrangler.toml\` の \`[triggers]\` で管理します。失敗時はCloudflare Worker logsで \`KEEPALIVE-DB-01\` を確認し、Workerの \`SUPABASE_URL\` / \`SUPABASE_SERVICE_ROLE_KEY\`、Project稼働状態、Supabase Auth API応答を確認してください。詳細は[Runbook](./troubleshooting.md#keepalive-db-01)を参照してください。
 
-名前はworkflowと完全一致させます。URLやkeyをworkflowへ直書きせず、Secret実値をcommitしません。失敗時は **Actions → Supabase Keep Alive → 失敗run → Send keep-alive request to Supabase REST API** を開きます。未設定、Project pause、URL/key不一致、API障害を確認し、ログへkeyを貼り直さないでください。詳細は[Runbook](./troubleshooting.md#keepalive-01)を参照してください。
+旧GitHub Actionsの \`Supabase Keep Alive\` workflowは使用しません。Frontend build用のRepository Secrets \`SUPABASE_URL\` / \`SUPABASE_ANON_KEY\` は引き続き必要です。
 
-Keep Aliveは有料Planへの移行・課金・クレジットカード登録を行いません。また、pause回避を保証するものではありません。
-
+Keep AliveはCloudflare Workers FreeのCron Trigger枠内で実行でき、追加課金を要求しません。Supabase公式では、Free Projectは過去7日間のユーザーデータベース活動が少ない場合にpause対象となり、通常は1日数回のユーザーDBリクエストでpause回避に十分とされています。ただしpause回避を保証する仕組みではありません。
 ## 無料構成とkey移行
 
 現行機能は [Supabase Free](https://supabase.com/pricing) と [Cloudflare Workers Free](https://developers.cloudflare.com/workers/platform/pricing/) の範囲で構成でき、Private Channel / Realtime Authorization自体のためにPro契約を必須化していません。本リポジトリは有料機能、課金設定、自動Plan移行、クレジットカード登録を要求しません。最新limitsは各公式ページを確認してください。
@@ -75,6 +73,7 @@ Supabaseの新しいpublishable/secret keyとSigning Keysへの移行は将来�
 - [ ] production `SUPABASE_JWT_SECRET` 設定済み
 - [ ] `SUPABASE_URL` 設定済み
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` 設定済み
+- [ ] Cloudflare Cron Triggerが1日3回設定済み
 - [ ] `ALLOWED_ORIGINS` は正式Originだけ
 - [ ] 開発既知Secretと `admin123` をproductionで使用していない
 - [ ] 初期Teacher作成後のbootstrap credentialsを見直した

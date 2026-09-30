@@ -7,6 +7,10 @@ compatibility_date = "2024-04-03"
 ENVIRONMENT = "production"
 ALLOWED_ORIGINS = "https://seat-check.pages.dev"
 
+[triggers]
+# 3回/日。CronはUTCで実行される（JST 09:17 / 17:17 / 01:17）。
+crons = ["17 0,8,16 * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "my-db"

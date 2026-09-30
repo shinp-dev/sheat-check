@@ -11,6 +11,7 @@ import { DrizzleRoomRepository } from './repositories/DrizzleRoomRepository';
 import { TeacherRepository } from './repositories/TeacherRepository';
 import { DrizzleTeacherRepository } from './repositories/DrizzleTeacherRepository';
 import { drizzle } from 'drizzle-orm/d1';
+import { KEEPALIVE_ERROR_CODE, runSupabaseKeepAlive } from './supabaseKeepAlive';
 
 type Bindings = {
   DB: D1Database;
@@ -408,4 +409,25 @@ const routes = app
 
 type DecoupledEnv = { Bindings: Omit<Bindings, 'DB'> & { DB: any }; Variables: Variables };
 export type AppType = typeof routes extends Hono<any, infer S, infer O> ? Hono<DecoupledEnv, S, O> : never;
+
+type ScheduledApp = typeof app & {
+  scheduled: (controller: ScheduledController, env: Bindings, ctx: ExecutionContext) => void;
+};
+
+(app as ScheduledApp).scheduled = (_controller, env, ctx) => {
+  ctx.waitUntil((async () => {
+    try {
+      await runSupabaseKeepAlive(env);
+      console.info('[KEEPALIVE-DB-OK] Supabase keep-alive query succeeded');
+    } catch (err) {
+      console.error(`[${KEEPALIVE_ERROR_CODE}] Supabase keep-alive query failed`, {
+        errorCode: KEEPALIVE_ERROR_CODE,
+        operation: 'supabase-keep-alive',
+        error: err instanceof Error ? { name: err.name, message: err.message } : { name: 'UnknownKeepAliveError' },
+      });
+      throw err;
+    }
+  })());
+};
+
 export default app;
