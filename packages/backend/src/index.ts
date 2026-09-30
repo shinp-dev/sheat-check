@@ -410,25 +410,24 @@ const routes = app
 type DecoupledEnv = { Bindings: Omit<Bindings, 'DB'> & { DB: any }; Variables: Variables };
 export type AppType = typeof routes extends Hono<any, infer S, infer O> ? Hono<DecoupledEnv, S, O> : never;
 
-const worker = {
-  fetch(request: Request, env: Bindings, ctx: ExecutionContext) {
-    return app.fetch(request, env, ctx);
-  },
-  scheduled(_controller: ScheduledController, env: Bindings, ctx: ExecutionContext) {
-    ctx.waitUntil((async () => {
-      try {
-        await runSupabaseKeepAlive(env);
-        console.info('[KEEPALIVE-DB-OK] Supabase keep-alive query succeeded');
-      } catch (err) {
-        console.error(`[${KEEPALIVE_ERROR_CODE}] Supabase keep-alive query failed`, {
-          errorCode: KEEPALIVE_ERROR_CODE,
-          operation: 'supabase-keep-alive',
-          error: err instanceof Error ? { name: err.name, message: err.message } : { name: 'UnknownKeepAliveError' },
-        });
-        throw err;
-      }
-    })());
-  },
+type ScheduledApp = typeof app & {
+  scheduled: (controller: ScheduledController, env: Bindings, ctx: ExecutionContext) => void;
 };
 
-export default worker;
+(app as ScheduledApp).scheduled = (_controller, env, ctx) => {
+  ctx.waitUntil((async () => {
+    try {
+      await runSupabaseKeepAlive(env);
+      console.info('[KEEPALIVE-DB-OK] Supabase keep-alive query succeeded');
+    } catch (err) {
+      console.error(`[${KEEPALIVE_ERROR_CODE}] Supabase keep-alive query failed`, {
+        errorCode: KEEPALIVE_ERROR_CODE,
+        operation: 'supabase-keep-alive',
+        error: err instanceof Error ? { name: err.name, message: err.message } : { name: 'UnknownKeepAliveError' },
+      });
+      throw err;
+    }
+  })());
+};
+
+export default app;
