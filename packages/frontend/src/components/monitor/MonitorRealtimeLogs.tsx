@@ -18,7 +18,7 @@ interface MonitorRealtimeLogsProps {
 
 export const MonitorRealtimeLogs: React.FC<MonitorRealtimeLogsProps> = ({ realtimeLogs, onBulkReset }) => {
   return (
-    <div className="card monitor-comments-card" style={{ width: '100%', minWidth: 0, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: '320px', maxHeight: '480px' }}>
+    <div className="card monitor-comments-card" style={{ width: '100%', minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
       <div className="monitor-comments-header">
         <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
           <Activity size={18} style={{ color: 'var(--color-student)' }} /> 直近のコメント
@@ -33,14 +33,14 @@ export const MonitorRealtimeLogs: React.FC<MonitorRealtimeLogsProps> = ({ realti
       </div>
       
       {!realtimeLogs.some((log) => log.comment?.trim()) ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-muted)' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, flexDirection: 'column', gap: '0.75rem', color: 'var(--text-muted)' }}>
           <Radio size={32} />
           <p style={{ fontSize: '0.85rem', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>
             学生からのコメントを<br />リアルタイムに待機しています...
           </p>
         </div>
       ) : (
-        <div className="activity-feed-container" style={{ flex: 1, overflowY: 'auto', minWidth: 0, maxHeight: '380px', paddingRight: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div className="activity-feed-container" style={{ flex: 1, overflowY: 'auto', minWidth: 0, minHeight: 0, paddingRight: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {realtimeLogs.filter((log) => log.comment?.trim()).map((log) => (
             <div key={log.id} className="feed-item" style={{ margin: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
