@@ -206,7 +206,10 @@ export const SeatCell = React.memo(({
             aria-modal="true"
             aria-label="座席の詳細"
             onMouseDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => { if (event.key === 'Escape') setIsDetailsOpen(false); }}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === 'Escape') setIsDetailsOpen(false);
+            }}
             style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', borderRadius: '12px', padding: '1.5rem', width: 'min(100%, 320px)', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
           >
             <h3 style={{ margin: 0 }}>座席の詳細</h3>
