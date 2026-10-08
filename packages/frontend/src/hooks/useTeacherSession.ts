@@ -59,6 +59,7 @@ export function useTeacherSession() {
   // ── Composed action handlers ──
   const handleRemoveLiveStatus = useCallback(async (key: string): Promise<boolean> => {
     if (!roomLayout.roomId) return false;
+    const displacedStudentId = seatManager.liveStatuses[key]?.studentId;
     try {
       const response = await client.api.rooms[':id'].seats[':seatId'].$delete({
         param: { id: roomLayout.roomId, seatId: key },
@@ -68,14 +69,14 @@ export function useTeacherSession() {
         return false;
       }
       seatManager.removeLiveStatus(key);
-      await realtimeSession.sendStudentEvictedBroadcast(key);
+      if (displacedStudentId) await realtimeSession.sendStudentEvictedBroadcast(key, displacedStudentId);
       addToast('success', '席を空けました。');
       return true;
     } catch {
       addToast('error', '通信エラーで席を空けられませんでした。');
       return false;
     }
-  }, [roomLayout.roomId, seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast, addToast]);
+  }, [roomLayout.roomId, seatManager.liveStatuses, seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast, addToast]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
