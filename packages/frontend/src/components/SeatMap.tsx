@@ -36,6 +36,17 @@ const shouldShrinkColumn = (
 
 export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveStatus, massive = false }: SeatMapProps) => {
   if (massive) {
+    // Keep the original seat coordinates and interior aisles, but stop drawing
+    // unused columns beyond the rightmost physical classroom element.
+    const visibleColumnCount = React.useMemo(() => {
+      for (let x = 11; x >= 0; x--) {
+        for (let y = 0; y < 12; y++) {
+          if (grid?.[`${x},${y}`]) return x + 1;
+        }
+      }
+      return 1;
+    }, [grid]);
+
     const shrinkCols = React.useMemo(() => {
       return Array.from({ length: 12 }).map((_, x) => shouldShrinkColumn(x, grid, liveStatuses));
     }, [grid, liveStatuses]);
@@ -46,9 +57,10 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
 
     const gridTemplateColumns = React.useMemo(() => {
       return shrinkCols
+        .slice(0, visibleColumnCount)
         .map((isShrink) => isShrink ? '22px' : '60px')
         .join(' ');
-    }, [shrinkCols]);
+    }, [shrinkCols, visibleColumnCount]);
 
     const gridTemplateRows = React.useMemo(() => {
       return emptyRows
@@ -71,7 +83,7 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
         >
           {Array.from({ length: 12 }).map((_, y) => {
             const isEmptyR = emptyRows[y];
-            return Array.from({ length: 12 }).map((_, x) => {
+            return Array.from({ length: visibleColumnCount }).map((_, x) => {
               const coordKey = `${x},${y}`;
               const cellType = grid ? grid[coordKey] : undefined;
               const liveStatus = liveStatuses ? liveStatuses[coordKey] : undefined;
