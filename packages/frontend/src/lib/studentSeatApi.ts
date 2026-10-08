@@ -1,0 +1,27 @@
+/** Seat ownership is server-authoritative. A student's name/ID alone never grants a seat. */
+const apiUrl = (roomId: string, endpoint: string) => {
+  const root = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  return `${root}/api/rooms/${encodeURIComponent(roomId)}/${endpoint}`;
+};
+
+export async function claimStudentSeat(
+  roomId: string, jwt: string, seatId: string, existingToken?: string, restore = false,
+): Promise<{ status: number; token?: string }> {
+  const response = await fetch(apiUrl(roomId, 'seat-claim'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seatId, ...(existingToken ? { claimToken: existingToken } : {}), ...(restore ? { restore: true } : {}) }),
+  });
+  if (!response.ok) return { status: response.status };
+  const result: { claimToken: string } = await response.json();
+  return { status: response.status, token: result.claimToken };
+}
+
+export async function releaseStudentSeat(roomId: string, jwt: string, seatId: string, claimToken: string): Promise<boolean> {
+  const response = await fetch(apiUrl(roomId, 'seat-release'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seatId, claimToken }),
+  });
+  return response.ok;
+}
