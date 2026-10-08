@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { DndContext } from '@dnd-kit/core';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SeatCell } from './SeatCell';
 
 describe('SeatCell monitoring labels', () => {
+  afterEach(() => cleanup());
+
   it('shows only the last two student ID characters and reveals full identity on click', () => {
     render(
       <DndContext>
