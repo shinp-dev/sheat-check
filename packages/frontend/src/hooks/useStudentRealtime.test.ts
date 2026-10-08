@@ -38,6 +38,26 @@ describe('useStudentRealtime Student answer relay', () => {
     expect(request).not.toHaveProperty('keepalive');
   });
 
+  it('sends a standalone anonymous comment without a status or client identity', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
+    const { result } = renderHook(() => useStudentRealtime(props));
+    await act(async () => {
+      expect(await result.current.sendStudentCommentBroadcast('1,1', ' 質問です ', true)).toBe('ok');
+    });
+    const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(request.body as string)).toEqual({ kind: 'comment', seatId: '1,1', comment: '質問です', anonymous: true });
+    expect(request.headers).toMatchObject({ Authorization: 'Bearer student-jwt' });
+  });
+
+  it.each(['   ', 'x'.repeat(1001)])('rejects an invalid comment before sending it', async (comment) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    const { result } = renderHook(() => useStudentRealtime(props));
+    await act(async () => {
+      expect(await result.current.sendStudentCommentBroadcast('1,1', comment)).toBe('error');
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('sets keepalive only when requested for an unload event', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const { result } = renderHook(() => useStudentRealtime(props));

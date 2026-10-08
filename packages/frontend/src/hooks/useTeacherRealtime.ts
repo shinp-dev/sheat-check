@@ -118,9 +118,10 @@ export function useTeacherRealtime({
 
     const handleStudentResponse = (response: { payload: any }) => {
         const payload = response.payload;
-        if (payload && payload.seatId && payload.status) {
+        if (payload && payload.seatId && (payload.kind === 'comment' || payload.status)) {
+          const isComment = payload.kind === 'comment';
           const receivedAt = new Date().toLocaleTimeString('ja-JP');
-          setLiveStatuses((prev) => {
+          if (!isComment) setLiveStatuses((prev) => {
             const nextStatuses = { ...prev };
             if (payload.status === 'none') {
               delete nextStatuses[payload.seatId];
@@ -136,16 +137,15 @@ export function useTeacherRealtime({
             return nextStatuses;
           });
 
-          if (payload.status === 'none') {
+          if (!isComment && payload.status === 'none') {
             setRealtimeLogs((prev) => prev.filter((log) => log.seatId !== payload.seatId));
-          } else {
+          } else if (typeof payload.comment === 'string' && payload.comment.trim()) {
             const logItem: RealtimeLog = {
               id: crypto.randomUUID(),
               studentName: payload.anonymous ? '匿名' : (payload.studentName || '匿名'),
               studentId: payload.anonymous ? undefined : (payload.studentId || '不明'),
               seatId: payload.seatId,
-              status: payload.status,
-              comment: payload.comment || undefined,
+              comment: payload.comment,
               timestamp: receivedAt,
             };
             setRealtimeLogs((prev) => [
@@ -154,7 +154,7 @@ export function useTeacherRealtime({
             ]);
           }
 
-          if (payload.status === 'ng') {
+          if (!isComment && payload.status === 'ng') {
             playAlertSound();
           }
         }

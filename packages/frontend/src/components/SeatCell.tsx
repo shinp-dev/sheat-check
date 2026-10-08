@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDroppable } from '@dnd-kit/core';
 import { User, GraduationCap, XCircle, DoorOpen, X } from 'lucide-react';
 import { GridItem, LiveSeatStatus } from '@my-app/shared';
@@ -27,6 +28,7 @@ export const SeatCell = React.memo(({
   isShrinkCol = false
 }: SeatCellProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const { isOver, setNodeRef } = useDroppable({
     id: `cell-${x}-${y}`,
     data: { x, y },
@@ -106,6 +108,17 @@ export const SeatCell = React.memo(({
   return (
     <div
       ref={setNodeRef}
+      onClick={liveStatus && cellType === 'student' ? () => setIsDetailsOpen(true) : undefined}
+      onKeyDown={liveStatus && cellType === 'student' ? (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          setIsDetailsOpen(true);
+        }
+      } : undefined}
+      role={liveStatus && cellType === 'student' ? 'button' : undefined}
+      tabIndex={liveStatus && cellType === 'student' ? 0 : undefined}
+      aria-label={liveStatus && cellType === 'student' ? `座席 ${coordKey} の詳細を表示` : undefined}
+      title={liveStatus && cellType === 'student' ? `${liveStatus.name}（${liveStatus.studentId || '学籍番号不明'}）` : undefined}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={getCellClassNameMassive()}
@@ -121,39 +134,16 @@ export const SeatCell = React.memo(({
         <div className={`cell-item ${cellType} ${cellType === 'student' && liveStatus ? `student-live-${liveStatus.status}` : ''}`}>
           {cellType === 'student' && liveStatus ? (
             <>
-              {/* Default Name Display */}
-              <span className="student-name-display" style={{ 
-                fontSize: '0.85rem', 
-                fontWeight: 850, 
-                textAlign: 'center', 
-                lineHeight: '1.2',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: 'block',
-                width: '100%',
-                padding: '0 6px',
-                boxSizing: 'border-box'
-              }}>
-                {liveStatus.name}
-              </span>
-              {/* Hover Student ID Display */}
-              <span className="student-id-display" style={{ 
-                fontSize: '0.8rem', 
-                fontWeight: 'bold', 
+              {/* Compact monitoring label; detailed identity is available on selection. */}
+              <span className="monitor-seat-number" style={{
+                fontSize: '1rem',
+                fontWeight: 800,
                 fontFamily: 'monospace',
-                textAlign: 'center', 
-                lineHeight: '1.2',
+                textAlign: 'center',
+                lineHeight: 1,
                 whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: 'none',
-                width: '100%',
-                padding: '0 4px',
-                boxSizing: 'border-box',
-                letterSpacing: '0.02em'
               }}>
-                {liveStatus.studentId}
+                {liveStatus.studentId ? liveStatus.studentId.slice(-2) : '--'}
               </span>
 
               {/* Individual Student Eviction (Kick) Button */}
@@ -202,6 +192,34 @@ export const SeatCell = React.memo(({
             getIcon()
           )}
         </div>
+      )}
+      {isDetailsOpen && liveStatus && cellType === 'student' && createPortal(
+        <div
+          onClick={(event) => {
+            event.stopPropagation();
+            if (event.target === event.currentTarget) setIsDetailsOpen(false);
+          }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15, 23, 42, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="座席の詳細"
+            onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === 'Escape') setIsDetailsOpen(false);
+            }}
+            style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', borderRadius: '12px', padding: '1.5rem', width: 'min(100%, 320px)', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+          >
+            <h3 style={{ margin: 0 }}>座席の詳細</h3>
+            <div>氏名：{liveStatus.name}</div>
+            <div>学籍番号：{liveStatus.studentId || '不明'}</div>
+            <div>座席：{coordKey}</div>
+            <button type="button" autoFocus className="btn btn-secondary" onClick={() => setIsDetailsOpen(false)}>閉じる</button>
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

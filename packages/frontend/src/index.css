@@ -523,10 +523,10 @@ body {
 
 .grid-container-card.grid-massive-container {
   min-height: auto;
-  padding: 1.25rem;
-  width: 100%;
+  padding: 0.625rem;
+  width: fit-content;
   max-width: 100%;
-  overflow-x: auto; /* スマホや極端に狭い画面での最小崩れ防止 */
+  overflow-x: auto; /* 狭い画面では教室の配置を崩さずスクロール */
 }
 
 /* Grid Droppable/Interactive Cell (Zero-Noise Transparent Base) */
@@ -1227,7 +1227,7 @@ body {
 /* ==========================================================================
    Inline Student Seat Hover: Swaps Name with Student ID & hides original status colors
    ========================================================================== */
-.grid-cell:hover .cell-item.student {
+.grid-cell:not(.cell-massive):hover .cell-item.student {
   background-color: #0f172a !important;
   border-color: #38bdf8 !important;
   /* Beautiful glowing cyan outline */

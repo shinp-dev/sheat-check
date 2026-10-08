@@ -104,6 +104,7 @@ export const StudentPage: React.FC = () => {
   const {
     isFallbackActive,
     sendStudentToTeacherBroadcast,
+    sendStudentCommentBroadcast,
   } = useStudentRealtime({
     supabase,
     studentClassroomId,
@@ -374,19 +375,18 @@ export const StudentPage: React.FC = () => {
           onStudentLogin={handleStudentLogin}
           onLockSeat={handleLockSeat}
           onChangeSeat={handleChangeSeat}
-          onSendBroadcast={async (status, overrideComment, anonymous = false) => {
-            const commentToSend = overrideComment !== undefined ? overrideComment : studentComment;
+          onSendBroadcast={async (status) => {
             setStudentCurrentStatus(null);
-            if (overrideComment !== undefined) {
-              setStudentComment(overrideComment);
-            }
-            const result = await sendStudentToTeacherBroadcast(studentSeatId, status, studentName, studentId, commentToSend, undefined, anonymous && Boolean(commentToSend?.trim()));
+            const result = await sendStudentToTeacherBroadcast(studentSeatId, status, studentName, studentId);
             if (result === 'ok') {
               setStudentCurrentStatus(status);
               return true;
             }
             return false;
           }}
+          onSendComment={async (comment, anonymous) => (
+            await sendStudentCommentBroadcast(studentSeatId, comment, anonymous)
+          ) === 'ok'}
         />
       )}
     </div>
