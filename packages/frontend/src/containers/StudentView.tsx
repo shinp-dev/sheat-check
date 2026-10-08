@@ -27,6 +27,7 @@ interface StudentViewProps {
   studentGridLayout: Record<string, GridItem['type']>;
   onStudentLogin: () => void;
   onLockSeat: () => void;
+  isClaimingSeat: boolean;
   onChangeSeat: () => void;
   onSendBroadcast: (status: 'ok' | 'ng') => Promise<boolean>;
   onSendComment: (comment: string, anonymous: boolean) => Promise<boolean>;
@@ -53,6 +54,7 @@ export const StudentView: React.FC<StudentViewProps> = React.memo(({
   studentGridLayout,
   onStudentLogin,
   onLockSeat,
+  isClaimingSeat,
   onChangeSeat,
   onSendBroadcast,
   onSendComment,
@@ -97,12 +99,14 @@ export const StudentView: React.FC<StudentViewProps> = React.memo(({
         {studentStage === 'select' && (
           <StudentSelect
             studentRoomTitle={studentRoomTitle}
+            studentClassroomId={studentClassroomId}
             studentLiveSeatLocked={studentLiveSeatLocked}
             studentGridLayout={studentGridLayout}
             studentSeatId={studentSeatId}
             setStudentSeatId={setStudentSeatId}
             setStudentStage={setStudentStage}
             onLockSeat={onLockSeat}
+            isClaimingSeat={isClaimingSeat}
           />
         )}
 
