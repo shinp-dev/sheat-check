@@ -16,9 +16,6 @@ export const TeacherMonitorPage: React.FC = () => {
   const handleLogout = useLogout();
   const { addToast } = useToast();
 
-  const minWidth = import.meta.env.VITE_MONITOR_CELL_MIN_WIDTH || '80';
-  const minHeight = import.meta.env.VITE_MONITOR_CELL_MIN_HEIGHT || '40';
-
   const session = useTeacherSession();
 
   // ページマウント時にユーザー操作で AudioContext を有効化（ブラウザ自動再生ポリシー対策）
@@ -56,67 +53,61 @@ export const TeacherMonitorPage: React.FC = () => {
   };
 
   return (
-    <div style={{ height: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', minWidth: '1280px', background: 'linear-gradient(135deg, rgba(107, 140, 174, 0.08) 0%, rgba(248, 250, 252, 0) 50%)' }}>
+    <div className="monitor-page-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, rgba(107, 140, 174, 0.08) 0%, rgba(248, 250, 252, 0) 50%)' }}>
       <TeacherHeader activePage="monitor" subtitle="みんなの様子" onLogout={handleLogout} />
 
-      <main 
-        className="main-content" 
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          padding: '1rem 2rem', 
-          gap: '1rem', 
-          width: '100%', 
-          maxWidth: '100%',
-          ['--min-cell-width' as any]: `${minWidth}px`,
-          ['--min-cell-height' as any]: `${minHeight}px`
-        }}
-      >
-        {/* Top Control Bar */}
-        <MonitorControlBar 
-          savedRooms={session.savedRooms}
-          roomId={session.roomId}
-          isActive={session.isActive}
-          onLoadClassroom={handleLoadClassroom}
-          onBulkReset={onHandleBulkReset}
-          onToggleActive={handleToggleActive}
-        />
-
-        {/* Main Massive Grid / Placeholder */}
+      <main className="main-content monitor-main-content" style={{
+        display: 'flex', flexDirection: 'column', padding: '1rem',
+        width: '100%', maxWidth: '100%', gap: '1rem',
+      }}>
         {session.roomId ? (
-          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: '1rem', flex: 1, gap: '2rem' }}>
-            
-            {/* Keep the classroom geometry; put QR into the freed space to its right. */}
-            <div className="monitor-classroom-and-qr" style={{
-              display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap',
-              gap: '1.5rem', width: '100%',
-            }}>
-              <div style={{ flex: '0 1 auto', minWidth: 0, maxWidth: '100%', overflowX: 'auto' }}>
-                <SeatMap
-                  grid={session.cases[session.activeCaseIdx]?.grid}
-                  liveStatuses={session.liveStatuses}
-                  onCycle={() => {}}
-                  onRemoveLiveStatus={session.removeLiveStatus}
-                  massive={true}
-                />
-              </div>
+          <div className="monitor-dashboard-grid">
+            <div className="monitor-control-region">
+              <MonitorControlBar
+                savedRooms={session.savedRooms}
+                roomId={session.roomId}
+                isActive={session.isActive}
+                onLoadClassroom={handleLoadClassroom}
+                onToggleActive={handleToggleActive}
+              />
+            </div>
+            <div className="monitor-seat-region">
+              <SeatMap
+                grid={session.cases[session.activeCaseIdx]?.grid}
+                liveStatuses={session.liveStatuses}
+                onCycle={() => {}}
+                onRemoveLiveStatus={session.removeLiveStatus}
+                massive={true}
+              />
+            </div>
+            <div className="monitor-qr-region">
               <MonitorSettingsDrawer roomId={session.roomId} />
             </div>
-
-            <MonitorRealtimeLogs realtimeLogs={session.realtimeLogs} />
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
-            <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '3rem 2rem', textAlign: 'center' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-student)', marginBottom: '1.5rem' }}>
-                <MonitorPlay size={32} />
-              </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>ライブ監視を開始</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.5' }}>
-                上部のメニューから教室を選択して、リアルタイムの授業理解度（OK/NG状況やコメント）の監視を開始してください。
-              </p>
+            <div className="monitor-comments-region">
+              <MonitorRealtimeLogs realtimeLogs={session.realtimeLogs} onBulkReset={onHandleBulkReset} />
             </div>
           </div>
+        ) : (
+          <>
+            <MonitorControlBar
+              savedRooms={session.savedRooms}
+              roomId={session.roomId}
+              isActive={session.isActive}
+              onLoadClassroom={handleLoadClassroom}
+              onToggleActive={handleToggleActive}
+            />
+            <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
+              <div className="card" style={{ maxWidth: '480px', width: '100%', padding: '3rem 2rem', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-student)', marginBottom: '1.5rem' }}>
+                  <MonitorPlay size={32} />
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>ライブ監視を開始</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.5' }}>
+                  上部のメニューから教室を選択して、リアルタイムの授業理解度（OK/NG状況やコメント）の監視を開始してください。
+                </p>
+              </div>
+            </div>
+          </>
         )}
       </main>
     </div>
