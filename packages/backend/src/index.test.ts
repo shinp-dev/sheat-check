@@ -358,6 +358,36 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       expect(relayBody).toMatchObject({ studentId: 'STU001', studentName: 'Claim Name' });
     });
 
+    it('relays a standalone anonymous comment with JWT identity and no status', async () => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 202 }));
+      const token = await studentToken();
+      const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ kind: 'comment', seatId: '1,1', comment: '質問', anonymous: true }),
+      }, relayEnv);
+      expect(response.status).toBe(200);
+      const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+      const relayBody = JSON.parse(request.body as string);
+      expect(relayBody).toMatchObject({ kind: 'comment', comment: '質問', anonymous: true, studentId: 'STU001', studentName: 'Claim Name' });
+      expect(relayBody).not.toHaveProperty('status');
+    });
+
+    it.each([
+      { kind: 'comment', seatId: '1,1', comment: ' ' },
+      { kind: 'comment', seatId: '1,1', comment: '質問', status: 'ok' },
+    ])('rejects invalid comment events without relaying them', async (payload) => {
+      const fetchMock = vi.spyOn(globalThis, 'fetch');
+      const token = await studentToken();
+      const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      }, relayEnv);
+      expect(response.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('normalizes repeated trailing slashes in the fixed Worker relay URL', async () => {
       const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 202 }));
       const token = await studentToken();

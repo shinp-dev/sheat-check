@@ -25,7 +25,7 @@ export const RealtimeLogSchema = z.object({
   studentName: z.string(),
   studentId: z.string().optional(),
   seatId: z.string(),
-  status: SeatStatusTypeSchema,
+  status: SeatStatusTypeSchema.optional(),
   comment: z.string().nullable().optional(),
   timestamp: z.string(),
 });

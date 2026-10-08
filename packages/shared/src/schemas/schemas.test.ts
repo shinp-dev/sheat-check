@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { SaveRoomLayoutInputSchema } from './roomLayout';
-import { StudentToTeacherEventSchema, BroadcastEventSchema } from './broadcastEvent';
+import { StudentToTeacherEventSchema, StudentEventInputSchema, BroadcastEventSchema } from './broadcastEvent';
 import { SeatStatusSchema, LiveSeatStatusSchema } from './seatStatus';
 
 describe('Shared Package Schemas Validation', () => {
@@ -46,6 +46,19 @@ describe('Shared Package Schemas Validation', () => {
   });
 
   describe('StudentToTeacherEventSchema (Student ID and details)', () => {
+    it('accepts an independent comment without a seat status', () => {
+      expect(StudentEventInputSchema.safeParse({ kind: 'comment', seatId: '1,1', comment: '質問', anonymous: true }).success).toBe(true);
+    });
+
+    it.each([
+      { kind: 'comment', seatId: '1,1', comment: '   ' },
+      { kind: 'comment', seatId: '1,1', comment: 'x'.repeat(1001) },
+      { kind: 'comment', seatId: '1,1', comment: '質問', status: 'ok' },
+      { kind: 'comment', seatId: '1,1', comment: '質問', studentId: 'FORGED1' },
+    ])('rejects invalid or status-changing comment inputs', (payload) => {
+      expect(StudentEventInputSchema.safeParse(payload).success).toBe(false);
+    });
+
     it('should validate valid student to teacher events', () => {
       const validData = {
         seatId: '1,1',

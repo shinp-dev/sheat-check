@@ -7,7 +7,8 @@ interface StudentDashboardProps {
   studentComment: string;
   setStudentComment: (val: string) => void;
   studentLiveSeatLocked: boolean;
-  onSendBroadcast: (status: 'ok' | 'ng', overrideComment?: string, anonymous?: boolean) => Promise<boolean>;
+  onSendBroadcast: (status: 'ok' | 'ng') => Promise<boolean>;
+  onSendComment: (comment: string, anonymous: boolean) => Promise<boolean>;
   onChangeSeat: () => void;
   currentStatus: 'ok' | 'ng' | null;
 }
@@ -19,14 +20,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
   setStudentComment,
   studentLiveSeatLocked,
   onSendBroadcast,
+  onSendComment,
   onChangeSeat,
   currentStatus,
 }) => {
   const [isSending, setIsSending] = React.useState(false);
   const [sendError, setSendError] = React.useState('');
   const [anonymous, setAnonymous] = React.useState(false);
+  const [isSendingComment, setIsSendingComment] = React.useState(false);
+  const [commentSendError, setCommentSendError] = React.useState('');
+  const [commentSent, setCommentSent] = React.useState(false);
 
-  const handleSend = async (status: 'ok' | 'ng', overrideComment?: string) => {
+  const handleSend = async (status: 'ok' | 'ng') => {
     if ('vibrate' in navigator) {
       try {
         navigator.vibrate(40);
@@ -36,7 +41,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
     setIsSending(true);
     setSendError('');
     try {
-      const success = await onSendBroadcast(status, overrideComment, anonymous);
+      const success = await onSendBroadcast(status);
       if (!success) {
         setSendError('回答を送信できませんでした。通信状態を確認して再送してください。');
       }
@@ -44,6 +49,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
       setSendError('回答を送信できませんでした。通信状態を確認して再送してください。');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleSendComment = async () => {
+    const text = studentComment.trim();
+    if (!text || isSendingComment) return;
+    setIsSendingComment(true);
+    setCommentSendError('');
+    setCommentSent(false);
+    try {
+      if (await onSendComment(text, anonymous)) {
+        setStudentComment('');
+        setCommentSent(true);
+      } else {
+        setCommentSendError('コメントを送信できませんでした。通信状態を確認して再送してください。');
+      }
+    } catch {
+      setCommentSendError('コメントを送信できませんでした。通信状態を確認して再送してください。');
+    } finally {
+      setIsSendingComment(false);
     }
   };
 
@@ -95,7 +120,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
         </div>
       )}
 
-      {/* One-tap feedback, with optional comment and anonymous public display. */}
+      {/* Comments are sent separately from the seat status. */}
       <div>
         <label htmlFor="student-feedback-comment" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>
           コメント（任意）
@@ -103,27 +128,33 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
         <textarea
           id="student-feedback-comment"
           value={studentComment}
-          onChange={(e) => setStudentComment(e.target.value)}
+          onChange={(e) => { setStudentComment(e.target.value); setCommentSent(false); }}
           maxLength={1000}
           rows={3}
           placeholder="気になったことや質問を入力できます"
-          disabled={isSending}
+          disabled={isSendingComment}
           style={{ width: '100%', boxSizing: 'border-box', borderRadius: '12px', padding: '0.85rem', resize: 'vertical', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.85)', color: 'var(--text-primary)', font: 'inherit' }}
         />
         <label style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginTop: '0.65rem', cursor: 'pointer', fontSize: '0.9rem' }}>
-          <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} disabled={isSending} />
+          <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} disabled={isSendingComment} />
           コメントを匿名表示する
         </label>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>
-          匿名にすると「みんなの様子」の回答一覧では名前を表示しません。教員の座席管理では本人を確認できます。
+          匿名にすると「みんなの様子」のコメント一覧では名前を表示しません。教員の座席管理では本人を確認できます。
         </p>
+        <button className="btn btn-primary" onClick={handleSendComment} disabled={isSendingComment || !studentComment.trim()}
+          style={{ width: '100%', justifyContent: 'center', marginTop: '0.85rem' }}>
+          {isSendingComment ? 'コメント送信中...' : 'コメントを送信'}
+        </button>
+        {commentSendError && <p role="alert" style={{ color: '#B5606A', fontSize: '0.85rem' }}>{commentSendError}</p>}
+        {commentSent && <p role="status" style={{ color: '#397B50', fontSize: '0.85rem' }}>✓ コメント送信済み</p>}
       </div>
       <fieldset disabled={isSending} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        <button className="quick-feedback-btn" onClick={() => handleSend('ng', studentComment)}
+        <button className="quick-feedback-btn" onClick={() => handleSend('ng')}
           style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #B5606A', background: '#F8E9EB', color: '#A63E4C', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
           <XCircle size={44} /> NG
         </button>
-        <button className="quick-feedback-btn" onClick={() => handleSend('ok', studentComment)}
+        <button className="quick-feedback-btn" onClick={() => handleSend('ok')}
           style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #6A9478', background: '#E8F3EC', color: '#397B50', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
           <CheckCircle2 size={44} /> OK
         </button>

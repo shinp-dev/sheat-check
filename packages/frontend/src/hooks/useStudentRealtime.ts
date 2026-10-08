@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import type { StudentEventInput } from '@my-app/shared';
 import { createAuthorizedPrivateChannel } from '../lib/realtimeChannel';
 import { logRealtimeFailure, toSafeRealtimeError } from '../lib/realtimeDiagnostics';
 import { extractErrorCode, readResponseBody } from '../lib/apiResponse';
@@ -176,14 +177,9 @@ export function useStudentRealtime({
     };
   }, [supabase, studentClassroomId, studentToken]);
 
-  const sendStudentToTeacherBroadcast = useCallback(async (
-    seatId: string,
-    status: 'ok' | 'ng' | 'none',
-    _studentName: string,
-    _studentId: string,
-    comment?: string | null,
+  const sendStudentEvent = useCallback(async (
+    payload: StudentEventInput,
     options?: StudentEventSendOptions,
-    anonymous = false,
   ): Promise<'ok' | 'error'> => {
     if (!studentToken || !studentClassroomId) return 'error';
 
@@ -191,12 +187,7 @@ export function useStudentRealtime({
       const res = await fetch(buildApiUrl(`/api/rooms/${encodeURIComponent(studentClassroomId)}/student-event`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${studentToken}` },
-        body: JSON.stringify({
-          seatId,
-          status,
-          comment: comment || null,
-          anonymous,
-        }),
+        body: JSON.stringify(payload),
         ...(options?.keepalive ? { keepalive: true } : {}),
       });
       if (res.ok) return 'ok';
@@ -209,8 +200,25 @@ export function useStudentRealtime({
     }
   }, [studentClassroomId, studentToken]);
 
+  const sendStudentToTeacherBroadcast = useCallback((
+    seatId: string,
+    status: 'ok' | 'ng' | 'none',
+    _studentName: string,
+    _studentId: string,
+    comment?: string | null,
+    options?: StudentEventSendOptions,
+    anonymous = false,
+  ) => sendStudentEvent({ seatId, status, comment: comment || null, anonymous }, options), [sendStudentEvent]);
+
+  const sendStudentCommentBroadcast = useCallback((seatId: string, comment: string, anonymous = false) => {
+    const text = comment.trim();
+    if (!text || text.length > 1000) return Promise.resolve('error' as const);
+    return sendStudentEvent({ kind: 'comment', seatId, comment: text, anonymous });
+  }, [sendStudentEvent]);
+
   return {
     isFallbackActive,
-    sendStudentToTeacherBroadcast
+    sendStudentToTeacherBroadcast,
+    sendStudentCommentBroadcast,
   };
 }

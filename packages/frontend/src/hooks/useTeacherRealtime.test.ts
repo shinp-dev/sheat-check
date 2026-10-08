@@ -302,9 +302,29 @@ describe('useTeacherRealtime authorization and Teacher events', () => {
     } }));
     expect(result.current.realtimeLogs).toHaveLength(1);
     expect(result.current.realtimeLogs[0]).toMatchObject({
-      seatId: '1,1', status: 'ng', comment: 'latest', studentId: 'STU001', studentName: 'Claim Name',
+      seatId: '1,1', comment: 'latest', studentId: 'STU001', studentName: 'Claim Name',
     });
     expect(statuses['1,1']).toMatchObject({ status: 'ng', comment: 'latest' });
+
+    act(() => receiveStudentEvent?.({ payload: {
+      kind: 'comment', seatId: '1,1', studentId: 'STU001', studentName: 'Claim Name', comment: 'anonymous question', anonymous: true,
+    } }));
+    expect(statuses['1,1']).toMatchObject({ status: 'ng', comment: 'latest' });
+    expect(result.current.realtimeLogs[0]).toMatchObject({ comment: 'anonymous question', studentName: '匿名' });
+    expect(result.current.realtimeLogs[0].studentId).toBeUndefined();
+    expect(result.current.realtimeLogs[0].status).toBeUndefined();
+
+    act(() => receiveStudentEvent?.({ payload: {
+      seatId: '1,1', status: 'ok', studentId: 'STU001', studentName: 'Claim Name',
+    } }));
+    expect(statuses['1,1'].status).toBe('ok');
+    expect(result.current.realtimeLogs[0].comment).toBe('anonymous question');
+
+    act(() => receiveStudentEvent?.({ payload: {
+      kind: 'comment', seatId: '2,2', studentId: 'STU002', studentName: 'Another Student', comment: 'before choosing a status',
+    } }));
+    expect(statuses['2,2']).toBeUndefined();
+    expect(result.current.realtimeLogs).toHaveLength(2);
 
     await act(async () => {
       expect(await result.current.sendTeacherResetBroadcast()).toBe('ok');

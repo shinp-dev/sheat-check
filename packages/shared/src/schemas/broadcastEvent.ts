@@ -5,7 +5,7 @@ import { SeatStatusTypeSchema } from './seatStatus';
  * 1. 学生から教員への送信フォーマット
  * Format for data sent from a student to the teacher.
  */
-export const StudentToTeacherEventSchema = z.object({
+export const StudentStatusEventSchema = z.object({
   seatId: z.string().regex(/^(?:[0-9]|1[01]),(?:[0-9]|1[01])$/, 'Seat ID must be an in-range grid coordinate'),
   status: SeatStatusTypeSchema,
   studentName: z.string().trim().min(1).max(100),
@@ -14,11 +14,25 @@ export const StudentToTeacherEventSchema = z.object({
   anonymous: z.boolean().optional(),
 }).strict();
 
-/** Student input accepted by the authenticated HTTP relay. Identity comes from JWT claims. */
-export const StudentEventInputSchema = StudentToTeacherEventSchema.omit({
-  studentName: true,
-  studentId: true,
+/** A comment is independent of the student's current seat status. */
+export const StudentCommentEventSchema = StudentStatusEventSchema.omit({
+  status: true,
+  comment: true,
+}).extend({
+  kind: z.literal('comment'),
+  comment: z.string().max(1000).trim().min(1),
 }).strict();
+
+export const StudentToTeacherEventSchema = z.union([
+  StudentStatusEventSchema,
+  StudentCommentEventSchema,
+]);
+
+/** Student input accepted by the authenticated HTTP relay. Identity comes from JWT claims. */
+export const StudentEventInputSchema = z.union([
+  StudentStatusEventSchema.omit({ studentName: true, studentId: true }).strict(),
+  StudentCommentEventSchema.omit({ studentName: true, studentId: true }).strict(),
+]);
 
 /**
  * 2. 教員から全学生へのリセット信号フォーマット

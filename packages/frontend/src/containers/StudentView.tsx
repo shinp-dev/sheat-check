@@ -28,7 +28,8 @@ interface StudentViewProps {
   onStudentLogin: () => void;
   onLockSeat: () => void;
   onChangeSeat: () => void;
-  onSendBroadcast: (status: 'ok' | 'ng', overrideComment?: string, anonymous?: boolean) => Promise<boolean>;
+  onSendBroadcast: (status: 'ok' | 'ng') => Promise<boolean>;
+  onSendComment: (comment: string, anonymous: boolean) => Promise<boolean>;
 }
 
 export const StudentView: React.FC<StudentViewProps> = React.memo(({
@@ -54,6 +55,7 @@ export const StudentView: React.FC<StudentViewProps> = React.memo(({
   onLockSeat,
   onChangeSeat,
   onSendBroadcast,
+  onSendComment,
 }) => {
   return (
     <main className="student-view-container">
@@ -112,6 +114,7 @@ export const StudentView: React.FC<StudentViewProps> = React.memo(({
             setStudentComment={setStudentComment}
             studentLiveSeatLocked={studentLiveSeatLocked}
             onSendBroadcast={onSendBroadcast}
+            onSendComment={onSendComment}
             onChangeSeat={onChangeSeat}
             currentStatus={studentCurrentStatus}
           />
