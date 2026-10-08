@@ -1319,16 +1319,12 @@ body {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* Narrow viewports stack QR and comments; keep classroom coordinates intact. */
+/* Keep the QR to the right of the classroom even on narrow screens.
+   If the screen is too small, scroll the compact workspace instead of reverting
+   to the previous 1280px-wide page or relocating the QR beneath the classroom. */
 @media (max-width: 980px) {
-  .monitor-page-shell { width: 100%; }
-  .monitor-dashboard-grid {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-  }
-  .monitor-dashboard-grid > * { width: 100%; max-width: 100%; }
+  .monitor-page-shell { width: max-content; max-width: none; }
+  .monitor-dashboard-grid { max-width: none; }
   .monitor-seat-region { overflow-x: auto; }
-  .monitor-qr-region { width: 270px; }
   .monitor-page-shell .header-controls { justify-content: flex-start; }
 }
