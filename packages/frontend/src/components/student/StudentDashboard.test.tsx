@@ -22,7 +22,7 @@ describe('StudentDashboard send state', () => {
     const onSendBroadcast = vi.fn(() => new Promise<boolean>((resolve) => { resolveSend = resolve; }));
     render(<StudentDashboard {...baseProps} onSendBroadcast={onSendBroadcast} />);
 
-    fireEvent.click(screen.getByText('バッチリ！'));
+    fireEvent.click(screen.getByRole('button', { name: /OK/ }));
     expect(screen.getByText('送信中...')).toBeTruthy();
     expect(screen.queryByText('✓ 送信済み')).toBeNull();
 
@@ -36,12 +36,20 @@ describe('StudentDashboard send state', () => {
     const onSendBroadcast = vi.fn().mockResolvedValue(true);
     const { rerender } = render(<StudentDashboard {...baseProps} onSendBroadcast={onSendBroadcast} />);
 
-    fireEvent.click(screen.getByText('バッチリ！'));
+    fireEvent.click(screen.getByRole('button', { name: /OK/ }));
     expect(screen.queryByText('✓ 送信済み')).toBeNull();
-    await waitFor(() => expect(onSendBroadcast).toHaveBeenCalledWith('ok', '[順調] ペースも理解もバッチリです！'));
+    await waitFor(() => expect(onSendBroadcast).toHaveBeenCalledWith('ok', '', false));
 
     rerender(<StudentDashboard {...baseProps} currentStatus="ok" onSendBroadcast={onSendBroadcast} />);
     expect(screen.getByText('✓ 送信済み')).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('sends an anonymous comment together with the NG answer', async () => {
+    const onSendBroadcast = vi.fn().mockResolvedValue(true);
+    render(<StudentDashboard {...baseProps} studentComment="説明が速いです" onSendBroadcast={onSendBroadcast} />);
+    fireEvent.click(screen.getByLabelText('コメントを匿名表示する'));
+    fireEvent.click(screen.getByRole('button', { name: /NG/ }));
+    await waitFor(() => expect(onSendBroadcast).toHaveBeenCalledWith('ng', '説明が速いです', true));
   });
 });

@@ -141,8 +141,8 @@ export function useTeacherRealtime({
           } else {
             const logItem: RealtimeLog = {
               id: crypto.randomUUID(),
-              studentName: payload.studentName || '匿名',
-              studentId: payload.studentId || '不明',
+              studentName: payload.anonymous ? '匿名' : (payload.studentName || '匿名'),
+              studentId: payload.anonymous ? undefined : (payload.studentId || '不明'),
               seatId: payload.seatId,
               status: payload.status,
               comment: payload.comment || undefined,

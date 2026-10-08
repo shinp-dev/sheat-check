@@ -374,13 +374,13 @@ export const StudentPage: React.FC = () => {
           onStudentLogin={handleStudentLogin}
           onLockSeat={handleLockSeat}
           onChangeSeat={handleChangeSeat}
-          onSendBroadcast={async (status, overrideComment) => {
+          onSendBroadcast={async (status, overrideComment, anonymous = false) => {
             const commentToSend = overrideComment !== undefined ? overrideComment : studentComment;
             setStudentCurrentStatus(null);
             if (overrideComment !== undefined) {
               setStudentComment(overrideComment);
             }
-            const result = await sendStudentToTeacherBroadcast(studentSeatId, status, studentName, studentId, commentToSend);
+            const result = await sendStudentToTeacherBroadcast(studentSeatId, status, studentName, studentId, commentToSend, undefined, anonymous && Boolean(commentToSend?.trim()));
             if (result === 'ok') {
               setStudentCurrentStatus(status);
               return true;

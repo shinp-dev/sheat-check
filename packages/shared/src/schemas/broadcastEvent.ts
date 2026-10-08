@@ -11,6 +11,7 @@ export const StudentToTeacherEventSchema = z.object({
   studentName: z.string().trim().min(1).max(100),
   studentId: z.string().trim().regex(/^[A-Z0-9]{5,15}$/i, 'Student ID must be 5-15 alphanumeric characters'),
   comment: z.string().max(1000).nullable().optional(),
+  anonymous: z.boolean().optional(),
 }).strict();
 
 /** Student input accepted by the authenticated HTTP relay. Identity comes from JWT claims. */

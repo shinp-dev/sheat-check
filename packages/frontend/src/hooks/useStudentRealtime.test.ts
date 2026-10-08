@@ -33,7 +33,7 @@ describe('useStudentRealtime Student answer relay', () => {
     expect(sendResult).toBe('ok');
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/rooms/room-1/student-event');
-    expect(JSON.parse(request.body as string)).toEqual({ seatId: '1,1', status: 'ok', comment: 'understood' });
+    expect(JSON.parse(request.body as string)).toEqual({ seatId: '1,1', status: 'ok', comment: 'understood', anonymous: false });
     expect(request.headers).toMatchObject({ Authorization: 'Bearer student-jwt' });
     expect(request).not.toHaveProperty('keepalive');
   });

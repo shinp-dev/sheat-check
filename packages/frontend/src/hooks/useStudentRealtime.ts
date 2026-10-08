@@ -183,6 +183,7 @@ export function useStudentRealtime({
     _studentId: string,
     comment?: string | null,
     options?: StudentEventSendOptions,
+    anonymous = false,
   ): Promise<'ok' | 'error'> => {
     if (!studentToken || !studentClassroomId) return 'error';
 
@@ -194,6 +195,7 @@ export function useStudentRealtime({
           seatId,
           status,
           comment: comment || null,
+          anonymous,
         }),
         ...(options?.keepalive ? { keepalive: true } : {}),
       });
