@@ -68,6 +68,10 @@ export function useTeacherSession() {
         return false;
       }
       const result = await response.json();
+      if (!result.removed) {
+        addToast('warning', '席の状態がすでに変わっています。表示が更新されてから確認してください。');
+        return false;
+      }
       seatManager.removeLiveStatus(key);
       if (result.evictedClaimTag) {
         const notified = await realtimeSession.sendStudentEvictedBroadcast(key, result.evictedClaimTag);
