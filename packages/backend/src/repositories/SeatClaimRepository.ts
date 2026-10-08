@@ -58,12 +58,14 @@ export class D1SeatClaimRepository implements SeatClaimRepository {
   }
 
   async releaseByTeacher(roomId: string, seatId: string): Promise<string | null> {
-    // Atomic DELETE RETURNING identifies the exact claim that was removed, even
-    // if another student claims the seat immediately afterward.
+    const claim = await this.get(roomId, seatId);
+    if (!claim) return null;
+    // Conditional DELETE is safe if the old occupant released the seat and a
+    // new student claimed it between the read and delete.
     const removed = await this.db.prepare(
-      'DELETE FROM seat_claims WHERE room_id = ? AND seat_id = ? RETURNING claim_token',
-    ).bind(roomId, seatId).first<{ claim_token: string }>();
-    return removed?.claim_token ?? null;
+      'DELETE FROM seat_claims WHERE room_id = ? AND seat_id = ? AND claim_token = ?',
+    ).bind(roomId, seatId, claim.claimToken).run();
+    return removed.meta.changes === 1 ? claim.claimToken : null;
   }
 
   async verify(roomId: string, seatId: string, studentId: string, claimToken: string): Promise<boolean> {
