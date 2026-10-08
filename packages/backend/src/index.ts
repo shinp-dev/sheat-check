@@ -11,6 +11,7 @@ import { DrizzleRoomRepository } from './repositories/DrizzleRoomRepository';
 import { TeacherRepository } from './repositories/TeacherRepository';
 import { DrizzleTeacherRepository } from './repositories/DrizzleTeacherRepository';
 import { drizzle } from 'drizzle-orm/d1';
+import { D1SeatClaimRepository, type SeatClaimRepository } from './repositories/SeatClaimRepository';
 import { KEEPALIVE_ERROR_CODE, runSupabaseKeepAlive } from './supabaseKeepAlive';
 
 type Bindings = {
@@ -28,6 +29,7 @@ type Bindings = {
 type Variables = {
   roomRepo: IRoomRepository;
   teacherRepo: TeacherRepository;
+  seatClaimRepo: SeatClaimRepository;
   teacherAuthUser?: any;
 };
 
@@ -87,7 +89,7 @@ app.use('*', cors({
     }
     return '';
   },
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Seat-Claim'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   maxAge: 600,
   credentials: true,
@@ -157,6 +159,7 @@ app.use('*', async (c, next) => {
     if (!c.get('roomRepo')) c.set('roomRepo', new DrizzleRoomRepository(db));
     if (!c.get('teacherRepo')) c.set('teacherRepo', new DrizzleTeacherRepository(db));
   }
+  if (!c.get('seatClaimRepo')) c.set('seatClaimRepo', new D1SeatClaimRepository(c.env.DB));
 
   try {
     const teacherRepo = c.get('teacherRepo');
@@ -180,6 +183,25 @@ const StudentTokenInputSchema = z.object({
   name: z.string().trim().min(1).max(100),
 }).strict();
 
+const SeatCoordinateSchema = z.string().regex(/^(?:[0-9]|1[01]),(?:[0-9]|1[01])$/);
+const SeatClaimInputSchema = z.object({ seatId: SeatCoordinateSchema, claimToken: z.string().uuid().optional(), restore: z.boolean().optional() }).strict();
+const SeatReleaseInputSchema = z.object({ seatId: SeatCoordinateSchema, claimToken: z.string().uuid() }).strict();
+
+// Self-entered student IDs are not ownership proof. Subsequent actions need the
+// unpredictable capability issued by the first successful atomic claim.
+const verifyStudent = async (c: Context<AppEnv>, roomId: string) => {
+  const header = c.req.header('Authorization');
+  if (!header?.startsWith('Bearer ')) return null;
+  try {
+    const claims = await verify(header.slice(7), getSecret(c.env, 'SUPABASE_JWT_SECRET'), 'HS256');
+    if (claims.user_role !== 'student' || claims.role !== 'authenticated' ||
+        claims.roomId !== roomId || typeof claims.studentId !== 'string' || typeof claims.name !== 'string') return null;
+    return { studentId: claims.studentId, studentName: claims.name };
+  } catch {
+    return null;
+  }
+};
+
 const routes = app
   .get('/api/hello', (c) => c.json({ message: 'Hello Hono!' }))
 
@@ -191,6 +213,71 @@ const routes = app
     } catch (err) {
       return internalError(c, 'Internal Server Error', err);
     }
+  })
+
+  .get('/api/rooms/:id/occupied-seats', async (c) => {
+    try {
+      const id = c.req.param('id');
+      if (!(await c.get('roomRepo').exists(id))) return c.json({ error: 'Room not found' }, 404);
+      const claims = await c.get('seatClaimRepo').list(id);
+      return c.json({ occupiedSeats: claims.map(claim => claim.seatId) });
+    } catch (err) { return internalError(c, 'Could not load occupied seats', err); }
+  })
+
+  .get('/api/rooms/:id/seat-occupants', requireTeacher, async (c) => {
+    try {
+      const id = c.req.param('id');
+      if (!(await c.get('roomRepo').exists(id))) return c.json({ error: 'Room not found' }, 404);
+      const claims = await c.get('seatClaimRepo').list(id);
+      return c.json({ occupants: claims.map(({ seatId, studentId, studentName }) => ({ seatId, studentId, studentName })) });
+    } catch (err) { return internalError(c, 'Could not load seat occupants', err); }
+  })
+
+  .delete('/api/rooms/:id/seats/:seatId', requireTeacher, async (c) => {
+    const seatId = c.req.param('seatId');
+    if (!SeatCoordinateSchema.safeParse(seatId).success) return c.json({ error: 'Invalid seat' }, 400);
+    try {
+      const removed = await c.get('seatClaimRepo').releaseByTeacher(c.req.param('id'), seatId);
+      return c.json({ success: true, removed });
+    } catch (err) { return internalError(c, 'Could not clear seat', err); }
+  })
+
+  .post('/api/rooms/:id/seat-claim', zValidator('json', SeatClaimInputSchema), async (c) => {
+    const roomId = c.req.param('id');
+    const student = await verifyStudent(c, roomId);
+    if (!student) return c.json({ error: 'Unauthorized' }, 401);
+    const { seatId, claimToken, restore } = c.req.valid('json');
+    try {
+      const room = await c.get('roomRepo').findById(roomId);
+      if (!room || !room.isActive) return c.json({ error: 'Room unavailable' }, 403);
+      const [x, y] = seatId.split(',').map(Number);
+      if (!room.grid.some(seat => seat.x === x && seat.y === y && seat.type === 'student')) {
+        return c.json({ error: 'Not a student seat' }, 400);
+      }
+      const existing = await c.get('seatClaimRepo').get(roomId, seatId);
+      if (existing && claimToken && existing.studentId === student.studentId && existing.claimToken === claimToken) {
+        return c.json({ claimToken, seatId });
+      }
+      if (restore || existing) return c.json({ error: 'Seat already occupied or session expired' }, 409);
+      const issuedClaimToken = crypto.randomUUID();
+      const claimed = await c.get('seatClaimRepo').tryClaim({
+        roomId, seatId, studentId: student.studentId, studentName: student.studentName, claimToken: issuedClaimToken,
+      });
+      if (!claimed) return c.json({ error: 'Seat or student already assigned' }, 409);
+      return c.json({ claimToken: issuedClaimToken, seatId }, 201);
+    } catch (err) { return internalError(c, 'Could not claim seat', err); }
+  })
+
+  .post('/api/rooms/:id/seat-release', zValidator('json', SeatReleaseInputSchema), async (c) => {
+    const roomId = c.req.param('id');
+    const student = await verifyStudent(c, roomId);
+    if (!student) return c.json({ error: 'Unauthorized' }, 401);
+    try {
+      const { seatId, claimToken } = c.req.valid('json');
+      const released = await c.get('seatClaimRepo').release(roomId, seatId, student.studentId, claimToken);
+      if (!released) return c.json({ error: 'Only the current holder can release this seat' }, 403);
+      return c.json({ success: true });
+    } catch (err) { return internalError(c, 'Could not release seat', err); }
   })
 
   .post('/api/rooms/:id/student-token', zValidator('json', StudentTokenInputSchema), async (c) => {
@@ -213,16 +300,14 @@ const routes = app
 
   .post('/api/rooms/:id/student-event', zValidator('json', StudentEventInputSchema), async (c) => {
     const roomId = c.req.param('id');
-    const authHeader = c.req.header('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) return c.json({ error: 'Unauthorized' }, 401);
-    let claims: Awaited<ReturnType<typeof verify>>;
-    try {
-      claims = await verify(authHeader.slice(7), getSecret(c.env, 'SUPABASE_JWT_SECRET'), 'HS256');
-    } catch {
-      return c.json({ error: 'Unauthorized' }, 401);
-    }
-    if (claims.user_role !== 'student' || claims.role !== 'authenticated' || claims.roomId !== roomId || typeof claims.studentId !== 'string' || typeof claims.name !== 'string') {
-      return c.json({ error: 'Unauthorized' }, 401);
+    const student = await verifyStudent(c, roomId);
+    if (!student) return c.json({ error: 'Unauthorized' }, 401);
+    const input = c.req.valid('json');
+    const claimToken = c.req.header('X-Seat-Claim') || '';
+    // A status reset/eviction is never a student broadcast; it needs a release operation.
+    if ('status' in input && input.status === 'none') return c.json({ error: 'Use seat-release instead' }, 403);
+    if (!(await c.get('seatClaimRepo').verify(roomId, input.seatId, student.studentId, claimToken))) {
+      return c.json({ error: 'Seat session is not owned by this student' }, 403);
     }
 
     try {
@@ -247,8 +332,8 @@ const routes = app
           headers: { apikey: serviceKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...c.req.valid('json'),
-            studentId: claims.studentId,
-            studentName: claims.name,
+            studentId: student.studentId,
+            studentName: student.studentName,
             updatedAt: new Date().toISOString(),
           }),
         });
