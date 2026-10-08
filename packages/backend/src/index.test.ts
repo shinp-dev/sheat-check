@@ -412,6 +412,22 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(1);
     });
 
+    it('restores a claimed seat only with the original capability token', async () => {
+      await mockSeatClaimRepo.releaseByTeacher('test-room-uuid-1', '1,1');
+      const jwt = await tokenFor('STU002');
+      const request = (payload: Record<string, unknown>) => testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const first = await request({ seatId: '1,1' });
+      expect(first.status).toBe(201);
+      const issued = (await first.json() as { claimToken: string }).claimToken;
+      expect(issued).toMatch(/^[0-9a-f-]{36}$/i);
+      expect((await request({ seatId: '1,1', claimToken: issued, restore: true })).status).toBe(200);
+      expect((await request({ seatId: '1,1', restore: true })).status).toBe(409);
+    });
+
     it('requires a valid claim token as well as matching student identity to release/send', async () => {
       const owner=await tokenFor('STU001');
       const borrowed=await tokenFor('STU002');
