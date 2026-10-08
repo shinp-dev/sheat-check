@@ -59,7 +59,6 @@ export function useTeacherSession() {
   // ── Composed action handlers ──
   const handleRemoveLiveStatus = useCallback(async (key: string): Promise<boolean> => {
     if (!roomLayout.roomId) return false;
-    const displacedStudentId = seatManager.liveStatuses[key]?.studentId;
     try {
       const response = await client.api.rooms[':id'].seats[':seatId'].$delete({
         param: { id: roomLayout.roomId, seatId: key },
@@ -68,15 +67,22 @@ export function useTeacherSession() {
         addToast('error', '席を空けられませんでした。再試行してください。');
         return false;
       }
+      const result = await response.json();
       seatManager.removeLiveStatus(key);
-      if (displacedStudentId) await realtimeSession.sendStudentEvictedBroadcast(key, displacedStudentId);
+      if (result.evictedClaimTag) {
+        const notified = await realtimeSession.sendStudentEvictedBroadcast(key, result.evictedClaimTag);
+        if (notified !== 'ok') {
+          addToast('warning', '席は空きましたが、学生への通知に失敗しました。学生側で再読み込みしてください。');
+          return true;
+        }
+      }
       addToast('success', '席を空けました。');
       return true;
     } catch {
       addToast('error', '通信エラーで席を空けられませんでした。');
       return false;
     }
-  }, [roomLayout.roomId, seatManager.liveStatuses, seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast, addToast]);
+  }, [roomLayout.roomId, seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast, addToast]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
