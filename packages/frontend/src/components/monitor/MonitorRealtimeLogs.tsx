@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Radio } from 'lucide-react';
+import { Activity, Radio, RotateCcw } from 'lucide-react';
 
 interface RealtimeLog {
   id: string;
@@ -13,14 +13,24 @@ interface RealtimeLog {
 
 interface MonitorRealtimeLogsProps {
   realtimeLogs: RealtimeLog[];
+  onBulkReset?: () => void;
 }
 
-export const MonitorRealtimeLogs: React.FC<MonitorRealtimeLogsProps> = ({ realtimeLogs }) => {
+export const MonitorRealtimeLogs: React.FC<MonitorRealtimeLogsProps> = ({ realtimeLogs, onBulkReset }) => {
   return (
-    <div className="card" style={{ width: '100%', maxWidth: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: '320px', maxHeight: '480px' }}>
-      <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-        <Activity size={18} style={{ color: 'var(--color-student)' }} /> 直近のコメント
-      </h2>
+    <div className="card monitor-comments-card" style={{ width: '100%', minWidth: 0, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: '320px', maxHeight: '480px' }}>
+      <div className="monitor-comments-header">
+        <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          <Activity size={18} style={{ color: 'var(--color-student)' }} /> 直近のコメント
+        </h2>
+        {onBulkReset && (
+          <button type="button" className="btn btn-secondary" onClick={onBulkReset}
+            title="全員の回答状況をクリアして新しい質問を開始します。"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.45rem 0.75rem' }}>
+            <RotateCcw size={16} /> みんなの回答をクリア
+          </button>
+        )}
+      </div>
       
       {!realtimeLogs.some((log) => log.comment?.trim()) ? (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-muted)' }}>
@@ -30,7 +40,7 @@ export const MonitorRealtimeLogs: React.FC<MonitorRealtimeLogsProps> = ({ realti
           </p>
         </div>
       ) : (
-        <div className="activity-feed-container" style={{ flex: 1, overflowY: 'scroll', maxHeight: '380px', paddingRight: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div className="activity-feed-container" style={{ flex: 1, overflowY: 'auto', minWidth: 0, maxHeight: '380px', paddingRight: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {realtimeLogs.filter((log) => log.comment?.trim()).map((log) => (
             <div key={log.id} className="feed-item" style={{ margin: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>

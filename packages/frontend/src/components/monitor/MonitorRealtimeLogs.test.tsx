@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MonitorRealtimeLogs } from './MonitorRealtimeLogs';
 
 describe('MonitorRealtimeLogs', () => {
+  afterEach(() => cleanup());
+
   it('shows only comments without OK or NG labels', () => {
     render(<MonitorRealtimeLogs realtimeLogs={[
       { id: '1', studentId: 'STU001', studentName: '山田 太郎', seatId: '1,1', status: 'ok', timestamp: '10:00:01' },
@@ -17,5 +19,17 @@ describe('MonitorRealtimeLogs', () => {
     for (const text of ['STU001', '山田 太郎', 'OK', 'NG', '要確認', 'コメントなし']) {
       expect(screen.queryByText(text)).toBeNull();
     }
+  });
+  it('places the clear answers action inside the comments header, including when empty', () => {
+    const clear = vi.fn();
+    const { container } = render(<MonitorRealtimeLogs realtimeLogs={[]} onBulkReset={clear} />);
+    const card = container.querySelector('.monitor-comments-card');
+    const header = card?.querySelector('.monitor-comments-header');
+    const button = screen.getByRole('button', { name: 'みんなの回答をクリア' });
+    expect(card).not.toBeNull();
+    expect(header?.contains(button)).toBe(true);
+    fireEvent.click(button);
+    expect(clear).toHaveBeenCalledOnce();
+    expect(screen.getByText(/学生からのコメントを/)).toBeTruthy();
   });
 });

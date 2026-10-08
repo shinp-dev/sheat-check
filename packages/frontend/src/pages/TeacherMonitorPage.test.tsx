@@ -36,7 +36,11 @@ vi.mock('../hooks/useRequireAuth', () => ({ useRequireAuth: vi.fn(), useLogout: 
 vi.mock('../lib/audio', () => ({ initAudioOnInteraction: () => vi.fn() }));
 vi.mock('../components/layout/TeacherHeader', () => ({ TeacherHeader: () => null }));
 vi.mock('../components/SeatMap', () => ({ SeatMap: () => null }));
-vi.mock('../components/monitor/MonitorRealtimeLogs', () => ({ MonitorRealtimeLogs: () => null }));
+vi.mock('../components/monitor/MonitorRealtimeLogs', () => ({
+  MonitorRealtimeLogs: ({ onBulkReset }: { onBulkReset: () => void }) => (
+    <div data-testid="comments-region-mock"><button onClick={onBulkReset}>clear-from-comments</button></div>
+  ),
+}));
 vi.mock('../components/monitor/MonitorSettingsDrawer', () => ({ MonitorSettingsDrawer: () => null }));
 vi.mock('../components/monitor/MonitorControlBar', () => ({
   MonitorControlBar: ({ onToggleActive }: { onToggleActive: () => void }) => (
@@ -51,6 +55,21 @@ describe('TeacherMonitorPage room reception toggle', () => {
   });
 
   afterEach(() => cleanup());
+
+  it('uses one compact workspace for the classroom, QR and comments and clears from comments', () => {
+    mocks.session.handleBulkReset.mockReturnValue(true);
+    const { container } = render(<TeacherMonitorPage />);
+    const workspace = container.querySelector('.monitor-dashboard-grid');
+    expect(container.querySelector('.monitor-page-shell')).not.toBeNull();
+    expect(workspace?.querySelector('.monitor-seat-region')).not.toBeNull();
+    expect(workspace?.querySelector('.monitor-qr-region')).not.toBeNull();
+    expect(workspace?.querySelector('.monitor-comments-region')).not.toBeNull();
+    const button = screen.getByRole('button', { name: 'clear-from-comments' });
+    expect(workspace?.querySelector('.monitor-comments-region')?.contains(button)).toBe(true);
+    fireEvent.click(button);
+    expect(mocks.session.handleBulkReset).toHaveBeenCalledOnce();
+    expect(mocks.addToast).toHaveBeenCalledWith('success', expect.stringContaining('みんなの回答をクリア'));
+  });
 
   it('updates local state only after the API succeeds', async () => {
     mocks.patch.mockResolvedValue({ ok: true, status: 200 });

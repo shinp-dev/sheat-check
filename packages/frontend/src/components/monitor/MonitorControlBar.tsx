@@ -1,12 +1,11 @@
 import React from 'react';
-import { FolderOpen, RotateCcw } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
 
 interface MonitorControlBarProps {
   savedRooms: { id: string; name: string }[];
   roomId: string | null;
   isActive: boolean;
   onLoadClassroom: (id: string) => void;
-  onBulkReset: () => void;
   onToggleActive: () => void;
 }
 
@@ -15,36 +14,26 @@ export const MonitorControlBar: React.FC<MonitorControlBarProps> = ({
   roomId,
   isActive,
   onLoadClassroom,
-  onBulkReset,
   onToggleActive
 }) => {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+    <div className="monitor-control-bar" style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: 0 }}>
       
       {/* Left: Room & Case Selection and Monitor Controls */}
-      <div style={{ display: 'flex', gap: '1rem', flex: 1, alignItems: 'center' }}>
-        <div className="card" style={{ padding: '0.75rem 1rem', flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', flex: 1, alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}>
+        <div className="card" style={{ padding: '0.75rem 1rem', flex: '1 1 260px', minWidth: 0, display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <FolderOpen size={20} />
           <select 
             className="text-input" 
             value={roomId || ''} 
             onChange={(e) => onLoadClassroom(e.target.value)}
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 0 }}
           >
             <option value="">教室を選択してください</option>
             {savedRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </div>
         
-        {/* Monitor Controls (Lock/Reset) */}
-        {roomId && (
-          <div className="card" style={{ padding: '0.75rem 1rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }} onClick={onBulkReset} title="全員の回答状況をクリアして新しい質問を開始します。">
-               <RotateCcw size={16}/> みんなの回答をクリア
-            </button>
-          </div>
-        )}
-
         {/* Reception Status Control (Open/Closed) */}
         {roomId && (
           <div className="card" style={{ padding: '0.75rem 1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
