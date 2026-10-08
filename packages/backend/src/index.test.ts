@@ -377,6 +377,11 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
         method: 'DELETE', headers: teacherHeaders,
       });
       expect(removed.status).toBe(200);
+      const releaseResponse = await removed.json() as { evictedClaimTag: string; removed: boolean };
+      expect(releaseResponse.removed).toBe(true);
+      expect(releaseResponse.evictedClaimTag).toMatch(/^[a-f0-9]{64}$/);
+      expect(JSON.stringify(releaseResponse)).not.toContain('STU001');
+      expect(JSON.stringify(releaseResponse)).not.toContain('test-seat-token');
       expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(0);
       const reclaimed = await testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
         method: 'POST',
