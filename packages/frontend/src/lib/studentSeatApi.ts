@@ -25,3 +25,9 @@ export async function releaseStudentSeat(roomId: string, jwt: string, seatId: st
   });
   return response.ok;
 }
+
+// Compare an opaque digest rather than including a student ID or claim token in broadcasts.
+export async function fingerprintClaimToken(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
