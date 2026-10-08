@@ -5,6 +5,7 @@ import { createAuthorizedPrivateChannel } from '../lib/realtimeChannel';
 import { logRealtimeFailure, toSafeRealtimeError } from '../lib/realtimeDiagnostics';
 import { extractErrorCode, readResponseBody } from '../lib/apiResponse';
 import { studentSession } from '../lib/storage';
+import { fingerprintClaimToken } from '../lib/studentSeatApi';
 
 interface UseStudentRealtimeProps {
   supabase: SupabaseClient | null;
@@ -12,7 +13,7 @@ interface UseStudentRealtimeProps {
   studentToken: string;
   addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
   onTeacherReset: () => void;
-  onTeacherEvict: (seatId: string, studentId: string) => void;
+  onTeacherEvict: (seatId: string) => void;
   onTeacherLockState: (locked: boolean) => void;
   onRoomLayoutUpdated: () => void;
 }
@@ -127,10 +128,15 @@ export function useStudentRealtime({
           onTeacherResetRef.current();
         })
         .on('broadcast', { event: 'student_evicted' }, (response) => {
-          if (response.payload && typeof response.payload.seatId === 'string' &&
-              typeof response.payload.studentId === 'string') {
-            onTeacherEvictRef.current(response.payload.seatId, response.payload.studentId);
-          }
+          const seatId = response.payload?.seatId;
+          const expectedTag = response.payload?.evictedClaimTag;
+          const savedToken = studentSession.getSeatClaimToken(studentClassroomId);
+          if (typeof seatId !== 'string' || typeof expectedTag !== 'string' || !savedToken) return;
+          void fingerprintClaimToken(savedToken).then((actualTag) => {
+            if (!cancelled && actualTag === expectedTag) onTeacherEvictRef.current(seatId);
+          }).catch(() => {
+            console.warn('[Student] Could not verify an eviction event');
+          });
         })
         .on('broadcast', { event: 'teacher_lock_state' }, (response) => {
           if (response.payload && typeof response.payload.locked === 'boolean') {
