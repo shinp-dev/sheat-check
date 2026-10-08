@@ -195,7 +195,10 @@ export const SeatCell = React.memo(({
       )}
       {isDetailsOpen && liveStatus && cellType === 'student' && createPortal(
         <div
-          onMouseDown={() => setIsDetailsOpen(false)}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (event.target === event.currentTarget) setIsDetailsOpen(false);
+          }}
           style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15, 23, 42, 0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
         >
           <div
