@@ -341,7 +341,7 @@ describe('useTeacherRealtime authorization and Teacher events', () => {
 
     // Leaving/changing seats is not a request to delete the comment history.
     act(() => receiveStudentEvent?.({ payload: {
-      seatId: '1,1', status: 'none', studentId: 'STU001', studentName: 'Claim Name',
+      seatId: '1,1', status: 'none', studentId: 'STU001', studentName: 'Claim Name', comment: 'stale comment',
     } }));
     expect(statuses['1,1']).toBeUndefined();
     expect(result.current.realtimeLogs).toHaveLength(5);
