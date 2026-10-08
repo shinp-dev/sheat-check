@@ -7,6 +7,7 @@ import { useTeacherRealtime } from './useTeacherRealtime';
 import { GridItem, LiveSeatStatus } from '@my-app/shared';
 import { useToast } from '../contexts/ToastContext';
 import { teacherAuth, activeRoom } from '../lib/storage';
+import client from '../lib/hc';
 
 /**
  * Facade hook that combines useRoomLayout + useSeatManager + useRealtimeSession
@@ -56,10 +57,25 @@ export function useTeacherSession() {
   }, [roomLayout.roomId, roomLayout.savedRooms]);
 
   // ── Composed action handlers ──
-  const handleRemoveLiveStatus = useCallback((key: string) => {
-    seatManager.removeLiveStatus(key);
-    realtimeSession.sendStudentEvictedBroadcast(key);
-  }, [seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast]);
+  const handleRemoveLiveStatus = useCallback(async (key: string): Promise<boolean> => {
+    if (!roomLayout.roomId) return false;
+    try {
+      const response = await client.api.rooms[':id'].seats[':seatId'].$delete({
+        param: { id: roomLayout.roomId, seatId: key },
+      });
+      if (!response.ok) {
+        addToast('error', '席を空けられませんでした。再試行してください。');
+        return false;
+      }
+      seatManager.removeLiveStatus(key);
+      await realtimeSession.sendStudentEvictedBroadcast(key);
+      addToast('success', '席を空けました。');
+      return true;
+    } catch {
+      addToast('error', '通信エラーで席を空けられませんでした。');
+      return false;
+    }
+  }, [roomLayout.roomId, seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast, addToast]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
