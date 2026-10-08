@@ -52,7 +52,7 @@ describe('useTeacherRealtime authorization and Teacher events', () => {
 
     await act(async () => {
       await result.current.sendTeacherResetBroadcast();
-      await result.current.sendStudentEvictedBroadcast('1,1');
+      await result.current.sendStudentEvictedBroadcast('1,1', 'STU001');
       await result.current.sendTeacherLockStateBroadcast(true);
       await result.current.sendRoomLayoutUpdatedBroadcast();
     });
