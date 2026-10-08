@@ -63,7 +63,7 @@ export function useTeacherRealtime({
     };
   }, [updateRealtimeOnlineState]);
 
-  // Keep only the active class's latest responses in memory.
+  // Comments are an in-memory, append-only feed for the active room (until explicit reset).
   useEffect(() => {
     setRealtimeLogs([]);
   }, [roomId]);
@@ -137,9 +137,9 @@ export function useTeacherRealtime({
             return nextStatuses;
           });
 
-          if (!isComment && payload.status === 'none') {
-            setRealtimeLogs((prev) => prev.filter((log) => log.seatId !== payload.seatId));
-          } else if (typeof payload.comment === 'string' && payload.comment.trim()) {
+          // A seat change or disconnect must not erase previously received comments.
+          // Anonymous and named posts are separate messages, even from the same seat.
+          if ((isComment || payload.status !== 'none') && typeof payload.comment === 'string' && payload.comment.trim()) {
             const logItem: RealtimeLog = {
               id: crypto.randomUUID(),
               studentName: payload.anonymous ? '匿名' : (payload.studentName || '匿名'),
@@ -148,10 +148,7 @@ export function useTeacherRealtime({
               comment: payload.comment,
               timestamp: receivedAt,
             };
-            setRealtimeLogs((prev) => [
-              logItem,
-              ...prev.filter((log) => log.seatId !== payload.seatId),
-            ]);
+            setRealtimeLogs((prev) => [logItem, ...prev]);
           }
 
           if (!isComment && payload.status === 'ng') {
