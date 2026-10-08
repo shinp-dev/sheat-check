@@ -237,8 +237,14 @@ const routes = app
     const seatId = c.req.param('seatId') || '';
     if (!SeatCoordinateSchema.safeParse(seatId).success) return c.json({ error: 'Invalid seat' }, 400);
     try {
-      const removed = await c.get('seatClaimRepo').releaseByTeacher(c.req.param('id') || '', seatId);
-      return c.json({ success: true, removed });
+      const removedToken = await c.get('seatClaimRepo').releaseByTeacher(c.req.param('id') || '', seatId);
+      // A one-way hash of the high-entropy token is safe to broadcast; never
+      // expose the token itself or a student's identity to classmates.
+      const evictedClaimTag = removedToken
+        ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(removedToken))))
+            .map(byte => byte.toString(16).padStart(2, '0')).join('')
+        : null;
+      return c.json({ success: true, removed: Boolean(removedToken), evictedClaimTag });
     } catch (err) { return internalError(c, 'Could not clear seat', err); }
   })
 
