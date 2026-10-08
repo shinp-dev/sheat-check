@@ -18,7 +18,12 @@ describe('MonitorSettingsDrawer QR access', () => {
     );
     expect(screen.queryByRole('link')).toBeNull();
     expect(screen.queryByText(url)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /チェックインURLをコピー/ }));
+    const copyButton = screen.getByRole('button', { name: 'チェックインURLをコピー' });
+    const label = copyButton.querySelector('.monitor-checkin-copy-label');
+    expect(Array.from(label?.children ?? []).map((element) => element.textContent))
+      .toEqual(['チェックインURL', 'をコピー']);
+    expect(copyButton.querySelectorAll('.monitor-checkin-copy-label > span')).toHaveLength(2);
+    fireEvent.click(copyButton);
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(url));
     expect(screen.getByRole('status')).toHaveTextContent('コピーしました');
   });
