@@ -1,13 +1,21 @@
 import React from 'react';
-import { Copy, QrCode } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, QrCode } from 'lucide-react';
 
 interface MonitorSettingsDrawerProps {
   roomId: string | null;
 }
 
-/** Compact QR panel beside the classroom. The full link is copied, not rendered. */
+/** Room-specific check-in QR; collapsed state leaves room for the live comments. */
 export const MonitorSettingsDrawer: React.FC<MonitorSettingsDrawerProps> = ({ roomId }) => {
+  const [isExpanded, setIsExpanded] = React.useState(true);
   const [copyMessage, setCopyMessage] = React.useState('');
+
+  // Switching classrooms should immediately make the new check-in QR visible.
+  React.useEffect(() => {
+    setIsExpanded(true);
+    setCopyMessage('');
+  }, [roomId]);
+
   if (!roomId) return null;
 
   const checkinUrl = `${window.location.origin}/student/${roomId}`;
@@ -21,34 +29,48 @@ export const MonitorSettingsDrawer: React.FC<MonitorSettingsDrawerProps> = ({ ro
   };
 
   return (
-    <aside className="card" style={{
-      width: '270px', maxWidth: '100%', flex: '0 0 270px', padding: '1rem',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
-      border: '1px solid var(--border-color)', boxSizing: 'border-box',
-    }}>
-      <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem', margin: 0, alignSelf: 'flex-start' }}>
-        <QrCode size={18} /> 学生用チェックイン QR
-      </h2>
-      <div style={{ background: '#fff', padding: '0.7rem', borderRadius: '3px' }}>
-        <img
-          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(checkinUrl)}`}
-          alt="学生用チェックインQRコード"
-          width={180}
-          height={180}
-          style={{ display: 'block' }}
-        />
-      </div>
-      <button type="button" className="btn btn-secondary monitor-checkin-copy-btn"
-        aria-label="チェックインURLをコピー"
-        onClick={copyLink}
-        style={{ width: '100%', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
-        <Copy size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
-        <span className="monitor-checkin-copy-label">
-          <span>チェックインURL</span>
-          <span>をコピー</span>
+    <aside className="card monitor-qr-card">
+      <button
+        type="button"
+        className="monitor-qr-toggle"
+        aria-expanded={isExpanded}
+        title={isExpanded ? 'QRコードを折りたたむ' : 'QRコードを展開する'}
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+      >
+        <span className="monitor-qr-title">
+          <QrCode size={18} aria-hidden="true" /> 学生用チェックイン QR
         </span>
+        {isExpanded
+          ? <ChevronUp size={18} aria-hidden="true" />
+          : <ChevronDown size={18} aria-hidden="true" />}
       </button>
-      {copyMessage && <p role="status" style={{ margin: 0, fontSize: '0.8rem' }}>{copyMessage}</p>}
+      {isExpanded && (
+        <div id="monitor-checkin-details" className="monitor-qr-details">
+          <div style={{ background: '#fff', padding: '0.7rem', borderRadius: '3px' }}>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(checkinUrl)}`}
+              alt="学生用チェックインQRコード"
+              width={180}
+              height={180}
+              style={{ display: 'block' }}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary monitor-checkin-copy-btn"
+            aria-label="チェックインURLをコピー"
+            onClick={copyLink}
+            style={{ width: '100%', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Copy size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+            <span className="monitor-checkin-copy-label">
+              <span>チェックインURL</span>
+              <span>をコピー</span>
+            </span>
+          </button>
+          {copyMessage && <p role="status" style={{ margin: 0, fontSize: '0.8rem' }}>{copyMessage}</p>}
+        </div>
+      )}
     </aside>
   );
 };

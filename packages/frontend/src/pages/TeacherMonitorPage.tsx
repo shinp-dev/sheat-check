@@ -80,11 +80,13 @@ export const TeacherMonitorPage: React.FC = () => {
                 massive={true}
               />
             </div>
-            <div className="monitor-qr-region">
-              <MonitorSettingsDrawer roomId={session.roomId} />
-            </div>
-            <div className="monitor-comments-region">
-              <MonitorRealtimeLogs realtimeLogs={session.realtimeLogs} onBulkReset={onHandleBulkReset} />
+            <div className="monitor-side-region">
+              <div className="monitor-qr-region">
+                <MonitorSettingsDrawer key={session.roomId} roomId={session.roomId} />
+              </div>
+              <div className="monitor-comments-region">
+                <MonitorRealtimeLogs realtimeLogs={session.realtimeLogs} onBulkReset={onHandleBulkReset} />
+              </div>
             </div>
           </div>
         ) : (
