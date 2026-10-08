@@ -22,7 +22,12 @@ export class InMemorySeatClaimRepository implements SeatClaimRepository {
     return this.claims.delete(this.key(roomId, seatId));
   }
 
-  async releaseByTeacher(roomId: string, seatId: string) { return this.claims.delete(this.key(roomId, seatId)); }
+  async releaseByTeacher(roomId: string, seatId: string) {
+    const claim = await this.get(roomId, seatId);
+    if (!claim) return null;
+    this.claims.delete(this.key(roomId, seatId));
+    return claim.claimToken;
+  }
 
   async verify(roomId: string, seatId: string, studentId: string, claimToken: string) {
     const claim = await this.get(roomId, seatId);
