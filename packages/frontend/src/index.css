@@ -1328,3 +1328,35 @@ body {
   .monitor-seat-region { overflow-x: auto; }
   .monitor-page-shell .header-controls { justify-content: flex-start; }
 }
+
+
+/* Teacher monitor: deliberately restrained corners rather than default
+   rounded SaaS cards. Other pages keep their existing style. */
+.monitor-page-shell .card,
+.monitor-page-shell .grid-container-card,
+.monitor-page-shell .feed-item {
+  border-radius: 3px;
+}
+.monitor-page-shell .btn,
+.monitor-page-shell .text-input,
+.monitor-page-shell .mode-toggle-btn,
+.monitor-page-shell .logo-icon {
+  border-radius: 3px;
+}
+.monitor-page-shell .grid-cell.cell-massive,
+.monitor-page-shell .grid-cell.cell-massive .cell-item {
+  border-radius: 2px;
+}
+.monitor-checkin-copy-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-align: center;
+}
+.monitor-checkin-copy-label > span {
+  display: block;
+  white-space: nowrap;
+}

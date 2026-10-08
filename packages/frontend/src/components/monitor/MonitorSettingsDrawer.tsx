@@ -29,7 +29,7 @@ export const MonitorSettingsDrawer: React.FC<MonitorSettingsDrawerProps> = ({ ro
       <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '1rem', margin: 0, alignSelf: 'flex-start' }}>
         <QrCode size={18} /> 学生用チェックイン QR
       </h2>
-      <div style={{ background: '#fff', padding: '0.7rem', borderRadius: '12px' }}>
+      <div style={{ background: '#fff', padding: '0.7rem', borderRadius: '3px' }}>
         <img
           src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(checkinUrl)}`}
           alt="学生用チェックインQRコード"
@@ -38,9 +38,15 @@ export const MonitorSettingsDrawer: React.FC<MonitorSettingsDrawerProps> = ({ ro
           style={{ display: 'block' }}
         />
       </div>
-      <button type="button" className="btn btn-secondary" onClick={copyLink}
-        style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-        <Copy size={16} /> チェックインURLをコピー
+      <button type="button" className="btn btn-secondary monitor-checkin-copy-btn"
+        aria-label="チェックインURLをコピー"
+        onClick={copyLink}
+        style={{ width: '100%', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+        <Copy size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
+        <span className="monitor-checkin-copy-label">
+          <span>チェックインURL</span>
+          <span>をコピー</span>
+        </span>
       </button>
       {copyMessage && <p role="status" style={{ margin: 0, fontSize: '0.8rem' }}>{copyMessage}</p>}
     </aside>
