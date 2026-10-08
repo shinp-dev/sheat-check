@@ -251,7 +251,7 @@ describe('useTeacherRealtime authorization and Teacher events', () => {
     }
   });
 
-  it('keeps only the latest answer per seat and records the Teacher receive time', async () => {
+  it('keeps a chronological in-memory comment feed across status changes, anonymity and seat release', async () => {
     let receiveStudentEvent: ((response: { payload: Record<string, unknown> }) => void) | undefined;
     const makeChannel = (isInbox = false) => {
       const channel: any = {
@@ -300,7 +300,8 @@ describe('useTeacherRealtime authorization and Teacher events', () => {
     act(() => receiveStudentEvent?.({ payload: {
       seatId: '1,1', status: 'ng', studentId: 'STU001', studentName: 'Claim Name', comment: 'latest',
     } }));
-    expect(result.current.realtimeLogs).toHaveLength(1);
+    expect(result.current.realtimeLogs).toHaveLength(2);
+    expect(result.current.realtimeLogs.map((entry) => entry.comment)).toEqual(['latest', 'first']);
     expect(result.current.realtimeLogs[0]).toMatchObject({
       seatId: '1,1', comment: 'latest', studentId: 'STU001', studentName: 'Claim Name',
     });
@@ -310,21 +311,40 @@ describe('useTeacherRealtime authorization and Teacher events', () => {
       kind: 'comment', seatId: '1,1', studentId: 'STU001', studentName: 'Claim Name', comment: 'anonymous question', anonymous: true,
     } }));
     expect(statuses['1,1']).toMatchObject({ status: 'ng', comment: 'latest' });
+    expect(result.current.realtimeLogs).toHaveLength(3);
     expect(result.current.realtimeLogs[0]).toMatchObject({ comment: 'anonymous question', studentName: '匿名' });
+    expect(result.current.realtimeLogs[1]).toMatchObject({ comment: 'latest', studentId: 'STU001', studentName: 'Claim Name' });
     expect(result.current.realtimeLogs[0].studentId).toBeUndefined();
     expect(result.current.realtimeLogs[0].status).toBeUndefined();
+
+    act(() => receiveStudentEvent?.({ payload: {
+      kind: 'comment', seatId: '1,1', studentId: 'STU001', studentName: 'Claim Name', comment: 'named again', anonymous: false,
+    } }));
+    expect(result.current.realtimeLogs).toHaveLength(4);
+    expect(result.current.realtimeLogs.map((entry) => entry.comment))
+      .toEqual(['named again', 'anonymous question', 'latest', 'first']);
+    expect(result.current.realtimeLogs[0]).toMatchObject({ studentName: 'Claim Name', studentId: 'STU001' });
+    expect(result.current.realtimeLogs[1]).toMatchObject({ studentName: '匿名', studentId: undefined });
 
     act(() => receiveStudentEvent?.({ payload: {
       seatId: '1,1', status: 'ok', studentId: 'STU001', studentName: 'Claim Name',
     } }));
     expect(statuses['1,1'].status).toBe('ok');
-    expect(result.current.realtimeLogs[0].comment).toBe('anonymous question');
+    expect(result.current.realtimeLogs.map((entry) => entry.comment))
+      .toEqual(['named again', 'anonymous question', 'latest', 'first']);
 
     act(() => receiveStudentEvent?.({ payload: {
       kind: 'comment', seatId: '2,2', studentId: 'STU002', studentName: 'Another Student', comment: 'before choosing a status',
     } }));
     expect(statuses['2,2']).toBeUndefined();
-    expect(result.current.realtimeLogs).toHaveLength(2);
+    expect(result.current.realtimeLogs).toHaveLength(5);
+
+    // Leaving/changing seats is not a request to delete the comment history.
+    act(() => receiveStudentEvent?.({ payload: {
+      seatId: '1,1', status: 'none', studentId: 'STU001', studentName: 'Claim Name',
+    } }));
+    expect(statuses['1,1']).toBeUndefined();
+    expect(result.current.realtimeLogs).toHaveLength(5);
 
     await act(async () => {
       expect(await result.current.sendTeacherResetBroadcast()).toBe('ok');
