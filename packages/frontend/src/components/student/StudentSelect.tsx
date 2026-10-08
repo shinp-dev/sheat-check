@@ -2,27 +2,54 @@ import React from 'react';
 import { Grid3X3, Lock, User, GraduationCap } from 'lucide-react';
 import { GridItem } from '@my-app/shared';
 import { useToast } from '../../contexts/ToastContext';
+import client from '../../lib/hc';
 
 interface StudentSelectProps {
   studentRoomTitle: string;
+  studentClassroomId: string;
   studentLiveSeatLocked: boolean;
   studentGridLayout: Record<string, GridItem['type']>;
   studentSeatId: string;
   setStudentSeatId: (val: string) => void;
   setStudentStage: (stage: 'config' | 'select' | 'dashboard') => void;
   onLockSeat: () => void;
+  isClaimingSeat: boolean;
 }
 
 export const StudentSelect: React.FC<StudentSelectProps> = React.memo(({
   studentRoomTitle,
+  studentClassroomId,
   studentLiveSeatLocked,
   studentGridLayout,
   studentSeatId,
   setStudentSeatId,
   setStudentStage,
   onLockSeat,
+  isClaimingSeat,
 }) => {
   const { addToast } = useToast();
+  const [occupiedSeats, setOccupiedSeats] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const response = await client.api.rooms[':id']['occupied-seats'].$get({
+          param: { id: studentClassroomId },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (!cancelled) setOccupiedSeats(new Set(data.occupiedSeats));
+        }
+      } catch {
+        // A stale occupancy map is advisory; the server verifies every claim atomically.
+      }
+    };
+    if (studentClassroomId) {
+      void refresh();
+      const timer = window.setInterval(refresh, 3000);
+      return () => { cancelled = true; window.clearInterval(timer); };
+    }
+  }, [studentClassroomId]);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div className="student-title-group">
@@ -59,16 +86,19 @@ export const StudentSelect: React.FC<StudentSelectProps> = React.memo(({
                   const cellType = studentGridLayout[coordKey];
                   const isStudentSeat = cellType === 'student';
                   const isSelected = studentSeatId === coordKey;
+                  const isOccupied = isStudentSeat && occupiedSeats.has(coordKey);
                   
                   let cellClass = 'grid-cell student-unselectable';
                   if (isStudentSeat) {
-                    cellClass = isSelected 
-                      ? 'grid-cell student-selected' 
-                      : 'grid-cell student-selectable';
+                    cellClass = isOccupied
+                      ? 'grid-cell student-unselectable'
+                      : isSelected ? 'grid-cell student-selected' : 'grid-cell student-selectable';
                   }
 
                   const handleClick = () => {
-                    if (isStudentSeat && !studentLiveSeatLocked) {
+                    if (isOccupied) {
+                      addToast('warning', 'この席はすでに別の学生が使用中です。');
+                    } else if (isStudentSeat && !studentLiveSeatLocked) {
                       setStudentSeatId(coordKey);
                     } else if (studentLiveSeatLocked) {
                       addToast('error', '座席ロック中のため席の変更はできません');
@@ -83,7 +113,9 @@ export const StudentSelect: React.FC<StudentSelectProps> = React.memo(({
                       <div
                         onClick={handleClick}
                         className={cellClass}
-                        style={{ aspectRatio: 1, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isStudentSeat ? 'pointer' : 'default' }}
+                        title={isOccupied ? '使用中（選択不可）' : undefined}
+                        aria-label={isOccupied ? `座席 ${coordKey} は使用中` : undefined}
+                        style={{ aspectRatio: 1, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isStudentSeat && !isOccupied ? 'pointer' : 'not-allowed', opacity: isOccupied ? 0.48 : 1 }}
                       >
                         {isStudentSeat && (
                           <div 
@@ -120,9 +152,9 @@ export const StudentSelect: React.FC<StudentSelectProps> = React.memo(({
           className="btn btn-primary" 
           style={{ flex: 2, justifyContent: 'center', whiteSpace: 'nowrap', fontSize: '0.95rem', gap: '0.5rem' }}
           onClick={onLockSeat}
-          disabled={!studentSeatId}
+          disabled={!studentSeatId || occupiedSeats.has(studentSeatId) || isClaimingSeat}
         >
-          <Lock size={16} /> この席で確定
+          <Lock size={16} /> {isClaimingSeat ? '確認中...' : 'この席で確定'}
         </button>
       </div>
     </div>
