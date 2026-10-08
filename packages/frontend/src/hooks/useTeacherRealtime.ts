@@ -67,7 +67,7 @@ export function useTeacherRealtime({
   // The database owns seat occupancy. Poll independently of OK/NG broadcasts so
   // check-ins show up before the first response and survive a teacher-page refresh.
   useEffect(() => {
-    if (!roomId || !realtimeToken || !supabase) return;
+    if (!roomId) return;
     let disposed = false;
     const refresh = async () => {
       try {
