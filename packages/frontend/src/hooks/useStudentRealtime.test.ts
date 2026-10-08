@@ -3,6 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStudentRealtime } from './useStudentRealtime';
 
+vi.mock('../lib/studentSeatApi', () => ({
+  fingerprintClaimToken: vi.fn().mockResolvedValue('test-opaque-tag'),
+}));
+
 const props = {
   supabase: null,
   studentClassroomId: 'room-1',
@@ -146,12 +150,12 @@ describe('useStudentRealtime Student answer relay', () => {
 
     act(() => {
       handlers.get('teacher_reset')?.({});
-      handlers.get('student_evicted')?.({ payload: { seatId: '1,1', studentId: 'STU001' } });
+      handlers.get('student_evicted')?.({ payload: { seatId: '1,1', evictedClaimTag: 'test-opaque-tag' } });
       handlers.get('teacher_lock_state')?.({ payload: { locked: true } });
       handlers.get('room_layout_updated')?.({});
     });
     expect(callbacks.onTeacherReset).toHaveBeenCalledOnce();
-    expect(callbacks.onTeacherEvict).toHaveBeenCalledWith('1,1', 'STU001');
+    await waitFor(() => expect(callbacks.onTeacherEvict).toHaveBeenCalledWith('1,1'));
     expect(callbacks.onTeacherLockState).toHaveBeenCalledWith(true);
     expect(callbacks.onRoomLayoutUpdated).toHaveBeenCalledOnce();
   });
