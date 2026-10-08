@@ -1,29 +1,29 @@
 // @vitest-environment jsdom
 import React from 'react';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MonitorSettingsDrawer } from './MonitorSettingsDrawer';
 
-describe('MonitorSettingsDrawer', () => {
-  afterEach(() => cleanup());
+describe('MonitorSettingsDrawer QR access', () => {
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
-  it('shows the Student QR whenever a roomId exists without Supabase controls', () => {
-    render(<MonitorSettingsDrawer roomId="room-123" />);
-
-    expect(screen.getByAltText('Student QR Code')).toHaveAttribute(
-      'src',
-      expect.stringContaining(encodeURIComponent(`${window.location.origin}/student/room-123`)),
+  it('shows the student QR and copies the URL without showing a long link', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    render(<MonitorSettingsDrawer roomId="example-room" />);
+    const url = window.location.origin + '/student/example-room';
+    expect(screen.getByAltText('学生用チェックインQRコード')).toHaveAttribute(
+      'src', expect.stringContaining(encodeURIComponent(url)),
     );
-    expect(screen.getByRole('link')).toHaveAttribute('href', `${window.location.origin}/student/room-123`);
-    expect(screen.queryByText('Supabase 接続設定')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('API URL')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('ANON KEY')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '設定を保存して接続' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Supabase 接続未設定')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByText(url)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /チェックインURLをコピー/ }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(url));
+    expect(screen.getByRole('status')).toHaveTextContent('コピーしました');
   });
 
-  it('renders nothing until a roomId exists', () => {
+  it('renders nothing without a selected classroom', () => {
     const { container } = render(<MonitorSettingsDrawer roomId={null} />);
     expect(container).toBeEmptyDOMElement();
   });
