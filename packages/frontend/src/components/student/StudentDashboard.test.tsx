@@ -18,6 +18,15 @@ const baseProps = {
 describe('StudentDashboard send state', () => {
   afterEach(cleanup);
 
+  it('places OK/NG quick responses above the optional comment field', () => {
+    render(<StudentDashboard {...baseProps} onSendBroadcast={vi.fn()} />);
+    const ok = screen.getByRole('button', { name: /OK/ });
+    const ng = screen.getByRole('button', { name: /NG/ });
+    const comment = screen.getByLabelText('コメント（任意）');
+    expect(ok.compareDocumentPosition(comment) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(ng.compareDocumentPosition(comment) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
   it('does not show sent while the relay is pending or after it fails', async () => {
     let resolveSend: (result: boolean) => void = () => {};
     const onSendBroadcast = vi.fn(() => new Promise<boolean>((resolve) => { resolveSend = resolve; }));
