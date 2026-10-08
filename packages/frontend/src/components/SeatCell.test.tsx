@@ -47,7 +47,7 @@ describe('SeatCell monitoring labels', () => {
     expect(name.style.overflow).toBe('hidden');
     expect(name.style.textOverflow).toBe('ellipsis');
     expect(name.style.width).toBe('100%');
-    expect(name.style.minWidth).toBe('0');
+    expect(name.style.minWidth).toBe('0px');
     fireEvent.mouseEnter(screen.getByRole('button', { name: '座席 0,0 の詳細を表示' }));
     expect(screen.getByText('99')).toBeTruthy();
   });
