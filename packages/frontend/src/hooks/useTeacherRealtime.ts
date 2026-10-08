@@ -349,7 +349,7 @@ export function useTeacherRealtime({
     }
   }, []);
 
-  const sendStudentEvictedBroadcast = useCallback(async (seatId: string, studentId: string): Promise<'ok' | 'error'> => {
+  const sendStudentEvictedBroadcast = useCallback(async (seatId: string, evictedClaimTag: string): Promise<'ok' | 'error'> => {
     const channel = teacherChannelRef.current;
     if (!channel) return 'error';
 
@@ -357,7 +357,7 @@ export function useTeacherRealtime({
       const res = await channel.send({
         type: 'broadcast',
         event: 'student_evicted',
-        payload: { seatId, studentId, timestamp: new Date().toISOString() },
+        payload: { seatId, evictedClaimTag, timestamp: new Date().toISOString() },
       });
       return res === 'ok' ? 'ok' : 'error';
     } catch (err) {
