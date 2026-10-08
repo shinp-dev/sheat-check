@@ -12,7 +12,7 @@ interface UseStudentRealtimeProps {
   studentToken: string;
   addToast: (type: 'success' | 'error' | 'info' | 'warning', message: string) => void;
   onTeacherReset: () => void;
-  onTeacherEvict: (seatId: string) => void;
+  onTeacherEvict: (seatId: string, studentId: string) => void;
   onTeacherLockState: (locked: boolean) => void;
   onRoomLayoutUpdated: () => void;
 }
@@ -127,8 +127,9 @@ export function useStudentRealtime({
           onTeacherResetRef.current();
         })
         .on('broadcast', { event: 'student_evicted' }, (response) => {
-          if (response.payload && typeof response.payload.seatId === 'string') {
-            onTeacherEvictRef.current(response.payload.seatId);
+          if (response.payload && typeof response.payload.seatId === 'string' &&
+              typeof response.payload.studentId === 'string') {
+            onTeacherEvictRef.current(response.payload.seatId, response.payload.studentId);
           }
         })
         .on('broadcast', { event: 'teacher_lock_state' }, (response) => {
