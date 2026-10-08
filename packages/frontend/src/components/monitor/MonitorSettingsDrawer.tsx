@@ -34,7 +34,6 @@ export const MonitorSettingsDrawer: React.FC<MonitorSettingsDrawerProps> = ({ ro
         type="button"
         className="monitor-qr-toggle"
         aria-expanded={isExpanded}
-        aria-controls="monitor-checkin-details"
         title={isExpanded ? 'QRコードを折りたたむ' : 'QRコードを展開する'}
         onClick={() => setIsExpanded((expanded) => !expanded)}
       >
