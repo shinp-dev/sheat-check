@@ -7,6 +7,7 @@ import { useTeacherRealtime } from './useTeacherRealtime';
 import { GridItem, LiveSeatStatus } from '@my-app/shared';
 import { useToast } from '../contexts/ToastContext';
 import { teacherAuth, activeRoom } from '../lib/storage';
+import client from '../lib/hc';
 
 /**
  * Facade hook that combines useRoomLayout + useSeatManager + useRealtimeSession
@@ -56,10 +57,36 @@ export function useTeacherSession() {
   }, [roomLayout.roomId, roomLayout.savedRooms]);
 
   // ── Composed action handlers ──
-  const handleRemoveLiveStatus = useCallback((key: string) => {
-    seatManager.removeLiveStatus(key);
-    realtimeSession.sendStudentEvictedBroadcast(key);
-  }, [seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast]);
+  const handleRemoveLiveStatus = useCallback(async (key: string): Promise<boolean> => {
+    if (!roomLayout.roomId) return false;
+    try {
+      const response = await client.api.rooms[':id'].seats[':seatId'].$delete({
+        param: { id: roomLayout.roomId, seatId: key },
+      });
+      if (!response.ok) {
+        addToast('error', '席を空けられませんでした。再試行してください。');
+        return false;
+      }
+      const result = await response.json();
+      if (!result.removed) {
+        addToast('warning', '席の状態がすでに変わっています。表示が更新されてから確認してください。');
+        return false;
+      }
+      seatManager.removeLiveStatus(key);
+      if (result.evictedClaimTag) {
+        const notified = await realtimeSession.sendStudentEvictedBroadcast(key, result.evictedClaimTag);
+        if (notified !== 'ok') {
+          addToast('warning', '席は空きましたが、学生への通知に失敗しました。学生側で再読み込みしてください。');
+          return true;
+        }
+      }
+      addToast('success', '席を空けました。');
+      return true;
+    } catch {
+      addToast('error', '通信エラーで席を空けられませんでした。');
+      return false;
+    }
+  }, [roomLayout.roomId, seatManager.removeLiveStatus, realtimeSession.sendStudentEvictedBroadcast, addToast]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;

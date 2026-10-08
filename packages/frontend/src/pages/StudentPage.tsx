@@ -8,6 +8,7 @@ import { StudentView } from '../containers/StudentView';
 import client from '../lib/hc';
 import { useToast } from '../contexts/ToastContext';
 import { studentSession } from '../lib/storage';
+import { claimStudentSeat, releaseStudentSeat } from '../lib/studentSeatApi';
 
 export const StudentPage: React.FC = () => {
   const { addToast } = useToast();
@@ -23,6 +24,7 @@ export const StudentPage: React.FC = () => {
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentSeatId, setStudentSeatId] = useState('');
+  const [isClaimingSeat, setIsClaimingSeat] = useState(false);
   const [studentComment, setStudentComment] = useState('');
   const [studentCurrentStatus, setStudentCurrentStatus] = useState<'ok' | 'ng' | null>(null);
   const [studentRoomTitle, setStudentRoomTitle] = useState('');
@@ -51,7 +53,8 @@ export const StudentPage: React.FC = () => {
         const active = data.isActive !== false;
         setIsRoomActive(active);
 
-        // Dynamically pre-fetch student JWT token if already logged in previously
+        // Refresh the student JWT and validate any locally stored seat capability.
+        let freshToken = studentSession.getToken(cleanUuid);
         if (storedId && storedName) {
           try {
             const tokenRes = await client.api.rooms[':id']['student-token'].$post({
@@ -62,6 +65,7 @@ export const StudentPage: React.FC = () => {
               const tokenData = await tokenRes.json();
               studentSession.saveToken(cleanUuid, tokenData.supabaseToken);
               setStudentToken(tokenData.supabaseToken);
+              freshToken = tokenData.supabaseToken;
             }
           } catch (jwtErr) {
             console.error('Failed to pre-fetch student realtime token:', jwtErr);
@@ -79,10 +83,30 @@ export const StudentPage: React.FC = () => {
         if (active) {
           if (forceStageUpdate) {
             if (storedName) {
-              if (storedSeatId) {
-                setStudentStage('dashboard');
-                addToast('success', `教室「${data.name}」の固定席 (${storedSeatId}) に自動チェックインしました！`);
+              const savedClaim = studentSession.getSeatClaimToken(cleanUuid);
+              if (storedSeatId && savedClaim && freshToken) {
+                try {
+                  const verified = await claimStudentSeat(cleanUuid, freshToken, storedSeatId, savedClaim, true);
+                  if (verified.token) {
+                    setStudentStage('dashboard');
+                    addToast('success', `教室「${data.name}」の固定席 (${storedSeatId}) を復元しました！`);
+                  } else {
+                    studentSession.removeSeatId(cleanUuid);
+                    studentSession.removeSeatClaimToken(cleanUuid);
+                    setStudentSeatId('');
+                    setStudentStage('select');
+                    addToast('warning', '以前の座席登録を確認できません。空席を選び直してください。');
+                  }
+                } catch {
+                  setStudentStage('select');
+                  addToast('error', '座席登録を確認できませんでした。通信状態を確認してください。');
+                }
               } else {
+                if (storedSeatId) {
+                  studentSession.removeSeatId(cleanUuid);
+                  studentSession.removeSeatClaimToken(cleanUuid);
+                  setStudentSeatId('');
+                }
                 setStudentStage('select');
                 addToast('info', `教室「${data.name}」の座席選択画面へ進みます`);
               }
@@ -119,6 +143,7 @@ export const StudentPage: React.FC = () => {
     onTeacherEvict: (evictedSeatId) => {
       if (studentSeatId === evictedSeatId) {
         studentSession.removeSeatId(studentClassroomId);
+        studentSession.removeSeatClaimToken(studentClassroomId);
         setStudentSeatId('');
         setStudentCurrentStatus(null);
         setStudentComment('');
@@ -163,21 +188,8 @@ export const StudentPage: React.FC = () => {
     }
   }, [roomId, fetchRoomAndSetup]);
 
-  // ページを閉じる・リロード・モバイルでのバックグラウンド移行時の自動離籍処理
-  useEffect(() => {
-    const handleUnload = () => {
-      if (studentSeatId && studentClassroomId && studentName && studentId) {
-        sendStudentToTeacherBroadcast(studentSeatId, 'none', studentName, studentId, undefined, { keepalive: true });
-      }
-    };
-
-    window.addEventListener('beforeunload', handleUnload);
-    window.addEventListener('pagehide', handleUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleUnload);
-      window.removeEventListener('pagehide', handleUnload);
-    };
-  }, [studentSeatId, studentClassroomId, studentName, studentId, sendStudentToTeacherBroadcast]);
+  // Seat ownership persists across reloads: only an explicit student release or
+  // an authenticated teacher eviction can free the claimed seat.
 
   const handleStudentLogin = async () => {
     if (!studentClassroomId.trim()) {
@@ -269,34 +281,60 @@ export const StudentPage: React.FC = () => {
     }
   };
 
-  const handleLockSeat = () => {
-    if (!studentSeatId.trim()) {
-      addToast('error', '座席番号を入力してください');
-      return;
-    }
+  const handleLockSeat = async () => {
+    if (!studentSeatId.trim() || isClaimingSeat) return;
     if (studentLiveSeatLocked) {
       addToast('warning', '現在、座席変更は教員によってロックされています。');
       return;
     }
-    studentSession.saveSeatId(studentClassroomId, studentSeatId);
-    studentSession.savePrevSeatId(studentClassroomId, studentSeatId);
-    setStudentStage('dashboard');
-    addToast('success', `座席を [ ${studentSeatId} ] に固定しました！`);
+    if (!studentToken || !studentClassroomId) {
+      addToast('error', '認証情報がありません。画面を再読み込みしてください。');
+      return;
+    }
+    setIsClaimingSeat(true);
+    try {
+      const response = await claimStudentSeat(studentClassroomId, studentToken, studentSeatId);
+      if (!response.token) {
+        addToast('error', response.status === 409
+          ? 'その席はすでに使用中か、別の座席に登録済みです。空席を選んでください。'
+          : '座席を確定できませんでした。もう一度お試しください。');
+        return;
+      }
+      studentSession.saveSeatClaimToken(studentClassroomId, response.token);
+      studentSession.saveSeatId(studentClassroomId, studentSeatId);
+      studentSession.savePrevSeatId(studentClassroomId, studentSeatId);
+      setStudentStage('dashboard');
+      addToast('success', `座席 [ ${studentSeatId} ] を確定しました！`);
+    } catch {
+      addToast('error', '通信エラーで座席を確定できませんでした。');
+    } finally {
+      setIsClaimingSeat(false);
+    }
   };
 
-  const handleChangeSeat = () => {
+  const handleChangeSeat = async () => {
     if (studentLiveSeatLocked) {
       addToast('warning', '現在、座席変更は教員によってロックされています。');
       return;
     }
-    if (studentSeatId) {
-      sendStudentToTeacherBroadcast(studentSeatId, 'none', studentName, studentId);
+    const claimToken = studentSession.getSeatClaimToken(studentClassroomId);
+    if (!claimToken || !studentSeatId) {
+      addToast('error', '座席登録を確認できません。再読み込みしてください。');
+      return;
     }
-    setStudentStage('select');
-    studentSession.removeSeatId(studentClassroomId);
-    // Keep studentSeatId in state as pre-selected highlight
-    setStudentCurrentStatus(null);
-    setStudentComment('');
+    try {
+      if (!await releaseStudentSeat(studentClassroomId, studentToken, studentSeatId, claimToken)) {
+        addToast('error', '席の変更に失敗しました。教員に確認してください。');
+        return;
+      }
+      studentSession.removeSeatId(studentClassroomId);
+      studentSession.removeSeatClaimToken(studentClassroomId);
+      setStudentStage('select');
+      setStudentCurrentStatus(null);
+      setStudentComment('');
+    } catch {
+      addToast('error', '通信エラーで席を変更できませんでした。');
+    }
   };
 
   return (
@@ -374,6 +412,7 @@ export const StudentPage: React.FC = () => {
           studentGridLayout={studentGridLayout}
           onStudentLogin={handleStudentLogin}
           onLockSeat={handleLockSeat}
+          isClaimingSeat={isClaimingSeat}
           onChangeSeat={handleChangeSeat}
           onSendBroadcast={async (status) => {
             setStudentCurrentStatus(null);

@@ -4,10 +4,12 @@ import { sign } from 'hono/jwt';
 import app from './index';
 import { InMemoryRoomRepository } from './repositories/InMemoryRoomRepository';
 import { InMemoryTeacherRepository } from './repositories/InMemoryTeacherRepository';
+import { InMemorySeatClaimRepository } from './repositories/InMemorySeatClaimRepository';
 
 describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => {
   let mockRepo: InMemoryRoomRepository;
   let mockTeacherRepo: InMemoryTeacherRepository;
+  let mockSeatClaimRepo: InMemorySeatClaimRepository;
   let testApp: Hono<any, any, any>;
   const teacherAuthorization = async (overrides: Record<string, unknown> = {}, secret = 'dev-app-jwt-secret-key-123') => {
     const token = await sign({
@@ -31,12 +33,15 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
     ]);
 
     mockTeacherRepo = new InMemoryTeacherRepository();
+    mockSeatClaimRepo = new InMemorySeatClaimRepository();
+    void mockSeatClaimRepo.tryClaim({ roomId:'test-room-uuid-1',seatId:'1,1',studentId:'STU001',studentName:'Claim Name',claimToken:'test-seat-token' });
 
     // 2. Setup a test Hono application that prepends repositories injection middleware
     testApp = new Hono();
     testApp.use('*', async (c, next) => {
       c.set('roomRepo', mockRepo);
       c.set('teacherRepo', mockTeacherRepo);
+      c.set('seatClaimRepo', mockSeatClaimRepo);
       await next();
     });
     
@@ -331,6 +336,125 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
     });
   });
 
+  describe('Exclusive seat claims', () => {
+    const tokenFor = async (id: string, name = id) => sign({
+      sub:`student:test-room-uuid-1:${id}`, user_role:'student', role:'authenticated',
+      roomId:'test-room-uuid-1', studentId:id, name, exp:Math.floor(Date.now()/1000)+3600,
+    }, 'dev-supabase-jwt-secret-key-456');
+
+    it('rejects another student claiming a taken seat and rejects student eviction', async () => {
+      const token = await tokenFor('STU002');
+      const attempt = () => testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({seatId:'1,1'}),
+      });
+      expect((await attempt()).status).toBe(409);
+      const another = await testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method:'POST', headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+        body:JSON.stringify({seatId:'1,1',restore:true}),
+      });
+      expect(another.status).toBe(409);
+      const unauthorized = await testApp.request('/api/rooms/test-room-uuid-1/seats/1%2C1', {
+        method:'DELETE', headers:{Authorization:`Bearer ${token}`},
+      });
+      expect(unauthorized.status).toBe(401);
+      expect((await mockSeatClaimRepo.get('test-room-uuid-1','1,1'))?.studentId).toBe('STU001');
+    });
+
+    it('does not leak student names in occupancy and reserves teacher-only eviction', async () => {
+      const occupancy = await testApp.request('/api/rooms/test-room-uuid-1/occupied-seats');
+      expect(occupancy.status).toBe(200);
+      expect(await occupancy.json()).toEqual({ occupiedSeats: ['1,1'] });
+      expect((await testApp.request('/api/rooms/test-room-uuid-1/seat-occupants')).status).toBe(401);
+
+      const teacherHeaders = await teacherAuthorization();
+      const teacherView = await testApp.request('/api/rooms/test-room-uuid-1/seat-occupants', { headers: teacherHeaders });
+      expect(teacherView.status).toBe(200);
+      expect(await teacherView.json()).toEqual({
+        occupants: [{ seatId: '1,1', studentId: 'STU001', studentName: 'Claim Name' }],
+      });
+      const removed = await testApp.request('/api/rooms/test-room-uuid-1/seats/1%2C1', {
+        method: 'DELETE', headers: teacherHeaders,
+      });
+      expect(removed.status).toBe(200);
+      const releaseResponse = await removed.json() as { evictedClaimTag: string; removed: boolean };
+      expect(releaseResponse.removed).toBe(true);
+      expect(releaseResponse.evictedClaimTag).toMatch(/^[a-f0-9]{64}$/);
+      expect(JSON.stringify(releaseResponse)).not.toContain('STU001');
+      expect(JSON.stringify(releaseResponse)).not.toContain('test-seat-token');
+      expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(0);
+      const reclaimed = await testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${await tokenFor('STU002')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seatId: '1,1' }),
+      });
+      expect(reclaimed.status).toBe(201);
+    });
+
+    it('rejects claiming another seat using the identity of an already seated student', async () => {
+      await mockRepo.update('test-room-uuid-1', {
+        name: '物理実験室', grid: [{ x: 1, y: 1, type: 'student' }, { x: 2, y: 2, type: 'student' }], isActive: true,
+      });
+      const response = await testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${await tokenFor('STU001')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seatId: '2,2' }),
+      });
+      expect(response.status).toBe(409);
+      expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(1);
+    });
+
+    it('atomically gives a free seat to just one concurrent student', async () => {
+      await mockSeatClaimRepo.releaseByTeacher('test-room-uuid-1','1,1');
+      const [a,b]=await Promise.all(['STU003','STU004'].map(async id => {
+        const jwt=await tokenFor(id);
+        return testApp.request('/api/rooms/test-room-uuid-1/seat-claim',{
+          method:'POST',headers:{Authorization:`Bearer ${jwt}`,'Content-Type':'application/json'},
+          body:JSON.stringify({seatId:'1,1'}),
+        });
+      }));
+      expect([a.status,b.status].sort()).toEqual([201,409]);
+      expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(1);
+    });
+
+    it('restores a claimed seat only with the original capability token', async () => {
+      await mockSeatClaimRepo.releaseByTeacher('test-room-uuid-1', '1,1');
+      const jwt = await tokenFor('STU002');
+      const request = (payload: Record<string, unknown>) => testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const first = await request({ seatId: '1,1' });
+      expect(first.status).toBe(201);
+      const issued = (await first.json() as { claimToken: string }).claimToken;
+      expect(issued).toMatch(/^[0-9a-f-]{36}$/i);
+      expect((await request({ seatId: '1,1', claimToken: issued, restore: true })).status).toBe(200);
+      expect((await request({ seatId: '1,1', restore: true })).status).toBe(409);
+    });
+
+    it('requires a valid claim token as well as matching student identity to release/send', async () => {
+      const owner=await tokenFor('STU001');
+      const borrowed=await tokenFor('STU002');
+      const post=(jwt:string, claimToken?:string) => testApp.request('/api/rooms/test-room-uuid-1/student-event',{
+        method:'POST',headers:{Authorization:`Bearer ${jwt}`,'Content-Type':'application/json',...(claimToken?{'X-Seat-Claim':claimToken}:{})},
+        body:JSON.stringify({seatId:'1,1',status:'ok'}),
+      },{SUPABASE_JWT_SECRET:'dev-supabase-jwt-secret-key-456',SUPABASE_URL:'https://example.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'mock-key'});
+      expect((await post(owner)).status).toBe(403);
+      expect((await post(borrowed,'test-seat-token')).status).toBe(403);
+      const invalidRelease=await testApp.request('/api/rooms/test-room-uuid-1/seat-release',{
+        method:'POST',headers:{Authorization:`Bearer ${borrowed}`,'Content-Type':'application/json'},
+        body:JSON.stringify({seatId:'1,1',claimToken:'00000000-0000-4000-8000-000000000000'}),
+      });
+      expect(invalidRelease.status).toBe(403);
+      const claimed=await testApp.request('/api/rooms/test-room-uuid-1/seat-claim',{
+        method:'POST',headers:{Authorization:`Bearer ${owner}`,'Content-Type':'application/json'},
+        body:JSON.stringify({seatId:'1,1',claimToken:'00000000-0000-4000-8000-000000000000',restore:true}),
+      });
+      expect(claimed.status).toBe(409);
+    });
+  });
+
   describe('Realtime trust boundary', () => {
     const relayEnv = {
       SUPABASE_JWT_SECRET: 'relay-test-secret-that-is-not-a-production-value',
@@ -348,7 +472,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const token = await studentToken();
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ seatId: '1,1', status: 'ok', comment: 'understood' }),
       }, relayEnv);
       expect(response.status).toBe(200);
@@ -363,7 +487,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const token = await studentToken();
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ kind: 'comment', seatId: '1,1', comment: '質問', anonymous: true }),
       }, relayEnv);
       expect(response.status).toBe(200);
@@ -381,7 +505,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const token = await studentToken();
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify(payload),
       }, relayEnv);
       expect(response.status).toBe(400);
@@ -393,7 +517,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const token = await studentToken();
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ seatId: '1,1', status: 'ok' }),
       }, { ...relayEnv, SUPABASE_URL: '  https://test-sb-1.supabase.co/  ' });
 
@@ -414,7 +538,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
 
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ seatId: '1,1', status: 'ng' }),
       }, relayEnv);
 
@@ -446,7 +570,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ seatId: '1,1', status: 'ok' }),
       }, { SUPABASE_JWT_SECRET: relayEnv.SUPABASE_JWT_SECRET });
 
@@ -466,7 +590,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const token = await studentToken('another-room');
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ seatId: '1,1', status: 'ok' }),
       }, relayEnv);
       expect(response.status).toBe(401);
@@ -476,7 +600,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       const token = await studentToken();
       const response = await testApp.request('/api/rooms/test-room-uuid-1/student-event', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'X-Seat-Claim': 'test-seat-token' },
         body: JSON.stringify({ type: 'teacher_reset', seatId: '1,1', status: 'ok', studentId: 'FORGED', studentName: 'Forged' }),
       }, relayEnv);
       expect(response.status).toBe(400);
@@ -495,6 +619,13 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
         student.name,
       )));
 
+      await mockSeatClaimRepo.releaseByTeacher('test-room-uuid-1', '1,1');
+      for (const [index, student] of students.entries()) {
+        await mockSeatClaimRepo.tryClaim({
+          roomId:'test-room-uuid-1',seatId:student.seatId,studentId:student.studentId,
+          studentName:student.name,claimToken:`claim-${index}`,
+        });
+      }
       const responses = await Promise.all(students.map((student, index) => testApp.request(
         '/api/rooms/test-room-uuid-1/student-event',
         {
@@ -502,6 +633,7 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${tokens[index]}`,
+            'X-Seat-Claim': `claim-${index}`,
             'CF-Connecting-IP': '203.0.113.10',
           },
           body: JSON.stringify({ seatId: student.seatId, status: index % 2 === 0 ? 'ok' : 'ng', comment: `answer-${index}` }),

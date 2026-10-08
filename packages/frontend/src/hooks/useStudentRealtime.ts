@@ -4,6 +4,8 @@ import type { StudentEventInput } from '@my-app/shared';
 import { createAuthorizedPrivateChannel } from '../lib/realtimeChannel';
 import { logRealtimeFailure, toSafeRealtimeError } from '../lib/realtimeDiagnostics';
 import { extractErrorCode, readResponseBody } from '../lib/apiResponse';
+import { studentSession } from '../lib/storage';
+import { fingerprintClaimToken } from '../lib/studentSeatApi';
 
 interface UseStudentRealtimeProps {
   supabase: SupabaseClient | null;
@@ -126,9 +128,15 @@ export function useStudentRealtime({
           onTeacherResetRef.current();
         })
         .on('broadcast', { event: 'student_evicted' }, (response) => {
-          if (response.payload && typeof response.payload.seatId === 'string') {
-            onTeacherEvictRef.current(response.payload.seatId);
-          }
+          const seatId = response.payload?.seatId;
+          const expectedTag = response.payload?.evictedClaimTag;
+          const savedToken = studentSession.getSeatClaimToken(studentClassroomId);
+          if (typeof seatId !== 'string' || typeof expectedTag !== 'string' || !savedToken) return;
+          void fingerprintClaimToken(savedToken).then((actualTag) => {
+            if (!cancelled && actualTag === expectedTag) onTeacherEvictRef.current(seatId);
+          }).catch(() => {
+            console.warn('[Student] Could not verify an eviction event');
+          });
         })
         .on('broadcast', { event: 'teacher_lock_state' }, (response) => {
           if (response.payload && typeof response.payload.locked === 'boolean') {
@@ -182,17 +190,26 @@ export function useStudentRealtime({
     options?: StudentEventSendOptions,
   ): Promise<'ok' | 'error'> => {
     if (!studentToken || !studentClassroomId) return 'error';
+    const claimToken = studentSession.getSeatClaimToken(studentClassroomId);
+    if (!claimToken) {
+      addToastRef.current('error', '座席を選択し直してください。');
+      return 'error';
+    }
 
     try {
       const res = await fetch(buildApiUrl(`/api/rooms/${encodeURIComponent(studentClassroomId)}/student-event`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${studentToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${studentToken}`, 'X-Seat-Claim': claimToken },
         body: JSON.stringify(payload),
         ...(options?.keepalive ? { keepalive: true } : {}),
       });
       if (res.ok) return 'ok';
       const code = extractErrorCode(await readResponseBody(res));
-      if (code) addToastRef.current('error', `回答を送信できませんでした。再送してください。（エラーコード: ${code}）`);
+      if (res.status === 403) {
+        addToastRef.current('error', '座席の登録が解除されています。再読み込みして座席を選び直してください。');
+      } else if (code) {
+        addToastRef.current('error', `回答を送信できませんでした。再送してください。（エラーコード: ${code}）`);
+      }
       return 'error';
     } catch (err) {
       console.error('Failed to send student broadcast:', err);

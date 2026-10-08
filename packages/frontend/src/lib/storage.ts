@@ -99,6 +99,7 @@ export const studentSession = {
   getSeatId: (roomId: string) => safeGetItem(`student_seat_id_${roomId}`),
   getPrevSeatId: (roomId: string) => safeGetItem(`student_prev_seat_id_${roomId}`),
   getToken: (roomId: string) => safeGetItem(`supabase_student_token_${roomId}`) || '',
+  getSeatClaimToken: (roomId: string) => safeGetItem(`student_seat_claim_${roomId}`) || '',
   getLastRoomId: () => safeGetItem('last_room_id'),
 
   saveId: (roomId: string, studentId: string) => safeSetItem(`student_id_${roomId}`, studentId),
@@ -106,7 +107,9 @@ export const studentSession = {
   saveSeatId: (roomId: string, seatId: string) => safeSetItem(`student_seat_id_${roomId}`, seatId),
   savePrevSeatId: (roomId: string, seatId: string) => safeSetItem(`student_prev_seat_id_${roomId}`, seatId),
   saveToken: (roomId: string, token: string) => safeSetItem(`supabase_student_token_${roomId}`, token),
+  saveSeatClaimToken: (roomId: string, token: string) => safeSetItem(`student_seat_claim_${roomId}`, token),
   saveLastRoomId: (roomId: string) => safeSetItem('last_room_id', roomId),
 
   removeSeatId: (roomId: string) => safeRemoveItem(`student_seat_id_${roomId}`),
+  removeSeatClaimToken: (roomId: string) => safeRemoveItem(`student_seat_claim_${roomId}`),
 };

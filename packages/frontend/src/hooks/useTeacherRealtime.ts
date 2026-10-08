@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { RealtimeLog, LiveSeatStatus } from '@my-app/shared';
 import { playAlertSound } from '../lib/audio';
+import client from '../lib/hc';
 import { createAuthorizedPrivateChannel } from '../lib/realtimeChannel';
 import { logRealtimeFailure, toSafeRealtimeError, type RealtimeErrorCode } from '../lib/realtimeDiagnostics';
 
@@ -62,6 +63,36 @@ export function useTeacherRealtime({
       window.removeEventListener('offline', handleOffline);
     };
   }, [updateRealtimeOnlineState]);
+
+  // The database owns seat occupancy. Poll independently of OK/NG broadcasts so
+  // check-ins show up before the first response and survive a teacher-page refresh.
+  useEffect(() => {
+    if (!roomId) return;
+    let disposed = false;
+    const refresh = async () => {
+      try {
+        const response = await client.api.rooms[':id']['seat-occupants'].$get({ param: { id: roomId } });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (disposed) return;
+        setLiveStatuses((previous) => {
+          const current: Record<string, LiveSeatStatus> = {};
+          for (const occupant of data.occupants) {
+            const old = previous[occupant.seatId];
+            current[occupant.seatId] = old?.studentId === occupant.studentId
+              ? { ...old, name: occupant.studentName }
+              : { status: 'none', name: occupant.studentName, studentId: occupant.studentId };
+          }
+          return current;
+        });
+      } catch {
+        // Keep the currently rendered statuses on temporary network errors.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(refresh, 3000);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [roomId, realtimeToken, supabase, setLiveStatuses]);
 
   // Comments are an in-memory, append-only feed for the active room (until explicit reset).
   useEffect(() => {
@@ -318,7 +349,7 @@ export function useTeacherRealtime({
     }
   }, []);
 
-  const sendStudentEvictedBroadcast = useCallback(async (seatId: string): Promise<'ok' | 'error'> => {
+  const sendStudentEvictedBroadcast = useCallback(async (seatId: string, evictedClaimTag: string): Promise<'ok' | 'error'> => {
     const channel = teacherChannelRef.current;
     if (!channel) return 'error';
 
@@ -326,7 +357,7 @@ export function useTeacherRealtime({
       const res = await channel.send({
         type: 'broadcast',
         event: 'student_evicted',
-        payload: { seatId, timestamp: new Date().toISOString() },
+        payload: { seatId, evictedClaimTag, timestamp: new Date().toISOString() },
       });
       return res === 'ok' ? 'ok' : 'error';
     } catch (err) {

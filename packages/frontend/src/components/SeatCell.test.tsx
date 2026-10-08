@@ -52,6 +52,22 @@ describe('SeatCell monitoring labels', () => {
     expect(screen.getByText('99')).toBeTruthy();
   });
 
+  it('shows teacher-only clearing inside the seat detail dialog', async () => {
+    const clearSeat = vi.fn().mockResolvedValue(true);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<DndContext>
+      <SeatCell x={0} y={0} cellType="student"
+        liveStatus={{ name: '山田 太郎', studentId: '24JZ0199', status: 'ok' }}
+        onCycle={vi.fn()} onRemoveLiveStatus={clearSeat} massive />
+    </DndContext>);
+    const seat = screen.getByRole('button', { name: '座席 0,0 の詳細を表示' });
+    expect(screen.queryByRole('button', { name: /退室させる/ })).toBeNull();
+    fireEvent.click(seat);
+    fireEvent.click(screen.getByRole('button', { name: '席を空ける' }));
+    await vi.waitFor(() => expect(clearSeat).toHaveBeenCalledWith('0,0'));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('does not expose monitoring identity controls for an empty seat', () => {
     render(<DndContext><SeatCell x={1} y={0} cellType="student" onCycle={vi.fn()} massive /></DndContext>);
     expect(screen.queryByRole('button', { name: /座席 .* の詳細を表示/ })).toBeNull();

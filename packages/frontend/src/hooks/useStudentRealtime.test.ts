@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStudentRealtime } from './useStudentRealtime';
+
+vi.mock('../lib/studentSeatApi', () => ({
+  fingerprintClaimToken: vi.fn().mockResolvedValue('test-opaque-tag'),
+}));
 
 const props = {
   supabase: null,
@@ -15,7 +19,9 @@ const props = {
 };
 
 describe('useStudentRealtime Student answer relay', () => {
+  beforeEach(() => localStorage.setItem('student_seat_claim_room-1', 'test-claim-token'));
   afterEach(() => {
+    localStorage.clear();
     vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -34,7 +40,7 @@ describe('useStudentRealtime Student answer relay', () => {
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/api/rooms/room-1/student-event');
     expect(JSON.parse(request.body as string)).toEqual({ seatId: '1,1', status: 'ok', comment: 'understood', anonymous: false });
-    expect(request.headers).toMatchObject({ Authorization: 'Bearer student-jwt' });
+    expect(request.headers).toMatchObject({ Authorization: 'Bearer student-jwt', 'X-Seat-Claim': 'test-claim-token' });
     expect(request).not.toHaveProperty('keepalive');
   });
 
@@ -46,7 +52,7 @@ describe('useStudentRealtime Student answer relay', () => {
     });
     const [, request] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(request.body as string)).toEqual({ kind: 'comment', seatId: '1,1', comment: '質問です', anonymous: true });
-    expect(request.headers).toMatchObject({ Authorization: 'Bearer student-jwt' });
+    expect(request.headers).toMatchObject({ Authorization: 'Bearer student-jwt', 'X-Seat-Claim': 'test-claim-token' });
   });
 
   it.each(['   ', 'x'.repeat(1001)])('rejects an invalid comment before sending it', async (comment) => {
@@ -144,12 +150,12 @@ describe('useStudentRealtime Student answer relay', () => {
 
     act(() => {
       handlers.get('teacher_reset')?.({});
-      handlers.get('student_evicted')?.({ payload: { seatId: '1,1' } });
+      handlers.get('student_evicted')?.({ payload: { seatId: '1,1', evictedClaimTag: 'test-opaque-tag' } });
       handlers.get('teacher_lock_state')?.({ payload: { locked: true } });
       handlers.get('room_layout_updated')?.({});
     });
     expect(callbacks.onTeacherReset).toHaveBeenCalledOnce();
-    expect(callbacks.onTeacherEvict).toHaveBeenCalledWith('1,1');
+    await waitFor(() => expect(callbacks.onTeacherEvict).toHaveBeenCalledWith('1,1'));
     expect(callbacks.onTeacherLockState).toHaveBeenCalledWith(true);
     expect(callbacks.onRoomLayoutUpdated).toHaveBeenCalledOnce();
   });
