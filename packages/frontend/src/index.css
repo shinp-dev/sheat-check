@@ -1267,7 +1267,7 @@ body {
   transform: scale(0.92) translateY(1px) !important;
 }
 
-/* Monitoring workspace width follows the classroom + QR, not the viewport. */
+/* Monitoring workspace width follows the classroom and its shared right rail. */
 .monitor-page-shell {
   width: fit-content;
   max-width: 100%;
@@ -1296,32 +1296,96 @@ body {
   grid-template-columns: max-content 270px;
   grid-template-areas:
     "controls controls"
-    "seats qr"
-    "comments comments";
-  gap: 1.25rem 1.5rem;
+    "seats side";
+  gap: 1rem 1.5rem;
   width: max-content;
   max-width: 100%;
   align-items: start;
 }
 .monitor-control-region { grid-area: controls; min-width: 0; }
 .monitor-seat-region { grid-area: seats; min-width: 0; }
-.monitor-qr-region { grid-area: qr; min-width: 0; }
-.monitor-comments-region { grid-area: comments; min-width: 0; width: 100%; }
-.monitor-comments-header {
+.monitor-side-region {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
+}
+.monitor-qr-region {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.monitor-qr-card {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.monitor-qr-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.monitor-qr-toggle:focus-visible {
+  outline: 2px solid var(--color-student);
+  outline-offset: 3px;
+}
+.monitor-qr-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.monitor-qr-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+}
+.monitor-comments-region {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+.monitor-comments-card {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.monitor-comments-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.monitor-comments-card .activity-feed-container {
+  min-height: 0;
+  max-height: none;
 }
 .monitor-comments-card .feed-item {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-/* Keep the QR to the right of the classroom even on narrow screens.
-   If the screen is too small, scroll the compact workspace instead of reverting
-   to the previous 1280px-wide page or relocating the QR beneath the classroom. */
+/* Preserve the classroom layout on narrow screens; the compact workspace
+   scrolls horizontally instead of stacking the QR underneath the seats. */
 @media (max-width: 980px) {
   .monitor-page-shell { width: max-content; max-width: none; }
   .monitor-dashboard-grid { max-width: none; }
