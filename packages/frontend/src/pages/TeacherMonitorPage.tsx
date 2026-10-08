@@ -86,11 +86,12 @@ export const TeacherMonitorPage: React.FC = () => {
         {session.roomId ? (
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: '1rem', flex: 1, gap: '2rem' }}>
             
-            {/* Vertical Layout: SeatMap on Top, Realtime Logs on Bottom */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%', alignItems: 'flex-start' }}>
-              
-              {/* Top: SeatMap */}
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+            {/* Keep the classroom geometry; put QR into the freed space to its right. */}
+            <div className="monitor-classroom-and-qr" style={{
+              display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap',
+              gap: '1.5rem', width: '100%',
+            }}>
+              <div style={{ flex: '0 1 auto', minWidth: 0, maxWidth: '100%', overflowX: 'auto' }}>
                 <SeatMap
                   grid={session.cases[session.activeCaseIdx]?.grid}
                   liveStatuses={session.liveStatuses}
@@ -99,16 +100,10 @@ export const TeacherMonitorPage: React.FC = () => {
                   massive={true}
                 />
               </div>
-
-              {/* Bottom: Realtime Logs */}
-              <MonitorRealtimeLogs realtimeLogs={session.realtimeLogs} />
-
+              <MonitorSettingsDrawer roomId={session.roomId} />
             </div>
 
-            {/* Permanent Settings & QR Drawer at the bottom */}
-            <MonitorSettingsDrawer 
-              roomId={session.roomId}
-            />
+            <MonitorRealtimeLogs realtimeLogs={session.realtimeLogs} />
           </div>
         ) : (
           <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
