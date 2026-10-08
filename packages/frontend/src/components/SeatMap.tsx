@@ -36,12 +36,21 @@ const shouldShrinkColumn = (
 
 export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveStatus, massive = false }: SeatMapProps) => {
   if (massive) {
-    // Keep the original seat coordinates and interior aisles, but stop drawing
-    // unused columns beyond the rightmost physical classroom element.
+    // Keep the original classroom coordinates and internal aisles, but stop
+    // drawing unused columns and rows beyond the rightmost/bottommost object.
     const visibleColumnCount = React.useMemo(() => {
       for (let x = 11; x >= 0; x--) {
         for (let y = 0; y < 12; y++) {
           if (grid?.[`${x},${y}`]) return x + 1;
+        }
+      }
+      return 1;
+    }, [grid]);
+
+    const visibleRowCount = React.useMemo(() => {
+      for (let y = 11; y >= 0; y--) {
+        for (let x = 0; x < 12; x++) {
+          if (grid?.[`${x},${y}`]) return y + 1;
         }
       }
       return 1;
@@ -64,9 +73,10 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
 
     const gridTemplateRows = React.useMemo(() => {
       return emptyRows
+        .slice(0, visibleRowCount)
         .map((isEmpty) => isEmpty ? '8px' : '44px')
         .join(' ');
-    }, [emptyRows]);
+    }, [emptyRows, visibleRowCount]);
 
     return (
       <div className="grid-container-card grid-massive-container" style={{ overflowX: 'auto', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box', alignSelf: 'flex-start' }}>
@@ -81,7 +91,7 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
             margin: 0,
           }}
         >
-          {Array.from({ length: 12 }).map((_, y) => {
+          {Array.from({ length: visibleRowCount }).map((_, y) => {
             const isEmptyR = emptyRows[y];
             return Array.from({ length: visibleColumnCount }).map((_, x) => {
               const coordKey = `${x},${y}`;
