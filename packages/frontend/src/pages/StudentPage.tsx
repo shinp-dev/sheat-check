@@ -140,8 +140,8 @@ export const StudentPage: React.FC = () => {
       // Keep the seat ID but refresh the portal for the new question session
       addToast('info', '教員が新しい質問を開始しました。現在の理解度回答がリセットされました。');
     },
-    onTeacherEvict: (evictedSeatId, evictedStudentId) => {
-      if (studentSeatId === evictedSeatId && studentId === evictedStudentId) {
+    onTeacherEvict: (evictedSeatId) => {
+      if (studentSeatId === evictedSeatId) {
         studentSession.removeSeatId(studentClassroomId);
         studentSession.removeSeatClaimToken(studentClassroomId);
         setStudentSeatId('');
