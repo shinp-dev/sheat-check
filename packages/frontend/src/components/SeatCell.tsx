@@ -189,7 +189,7 @@ export const SeatCell = React.memo(({
               event.stopPropagation();
               if (event.key === 'Escape') setIsDetailsOpen(false);
             }}
-            style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', borderRadius: '12px', padding: '1.5rem', width: 'min(100%, 320px)', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            style={{ background: 'var(--bg-card)', color: 'var(--text-primary)', borderRadius: '3px', padding: '1.5rem', width: 'min(100%, 320px)', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
           >
             <h3 style={{ margin: 0 }}>座席の詳細</h3>
             <div>氏名：{liveStatus.name}</div>
