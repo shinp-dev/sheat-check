@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, User, Lock, AlertTriangle, Unlock, Sparkles, Lightbulb, PenTool, HelpCircle, Volume2, Thermometer } from 'lucide-react';
+import { Heart, User, Lock, Unlock, CheckCircle2, XCircle } from 'lucide-react';
 
 interface StudentDashboardProps {
   studentName: string;
@@ -7,7 +7,7 @@ interface StudentDashboardProps {
   studentComment: string;
   setStudentComment: (val: string) => void;
   studentLiveSeatLocked: boolean;
-  onSendBroadcast: (status: 'ok' | 'ng', overrideComment?: string) => Promise<boolean>;
+  onSendBroadcast: (status: 'ok' | 'ng', overrideComment?: string, anonymous?: boolean) => Promise<boolean>;
   onChangeSeat: () => void;
   currentStatus: 'ok' | 'ng' | null;
 }
@@ -24,6 +24,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
 }) => {
   const [isSending, setIsSending] = React.useState(false);
   const [sendError, setSendError] = React.useState('');
+  const [anonymous, setAnonymous] = React.useState(false);
 
   const handleSend = async (status: 'ok' | 'ng', overrideComment?: string) => {
     if ('vibrate' in navigator) {
@@ -35,7 +36,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
     setIsSending(true);
     setSendError('');
     try {
-      const success = await onSendBroadcast(status, overrideComment);
+      const success = await onSendBroadcast(status, overrideComment, anonymous);
       if (!success) {
         setSendError('回答を送信できませんでした。通信状態を確認して再送してください。');
       }
@@ -94,198 +95,37 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
         </div>
       )}
 
-      {/* Mood Selector Buttons (Zero Typing / Absolute Single Line 2x3 Grid) */}
-      <fieldset disabled={isSending} style={{ border: 0, padding: 0, margin: '0.5rem 0 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-        {/* 1. 順調 */}
-        <button
-          className="quick-feedback-btn"
-          onClick={() => {
-            const msg = '[順調] ペースも理解もバッチリです！';
-            setStudentComment(msg);
-            handleSend('ok', msg);
-          }}
-          style={{
-            padding: '1.5rem 0.5rem',
-            borderRadius: '18px',
-            border: '1px solid rgba(106, 148, 120, 0.15)',
-            background: 'rgba(106, 148, 120, 0.08)',
-            color: '#6A9478',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.65rem',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-        >
-          <Sparkles size={28} />
-          <span>バッチリ！</span>
+      {/* One-tap feedback, with optional comment and anonymous public display. */}
+      <div>
+        <label htmlFor="student-feedback-comment" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>
+          コメント（任意）
+        </label>
+        <textarea
+          id="student-feedback-comment"
+          value={studentComment}
+          onChange={(e) => setStudentComment(e.target.value)}
+          maxLength={1000}
+          rows={3}
+          placeholder="気になったことや質問を入力できます"
+          disabled={isSending}
+          style={{ width: '100%', boxSizing: 'border-box', borderRadius: '12px', padding: '0.85rem', resize: 'vertical', border: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.85)', color: 'var(--text-primary)', font: 'inherit' }}
+        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginTop: '0.65rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+          <input type="checkbox" checked={anonymous} onChange={(e) => setAnonymous(e.target.checked)} disabled={isSending} />
+          コメントを匿名表示する
+        </label>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>
+          匿名にすると「みんなの様子」の回答一覧では名前を表示しません。教員の座席管理では本人を確認できます。
+        </p>
+      </div>
+      <fieldset disabled={isSending} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <button className="quick-feedback-btn" onClick={() => handleSend('ng', studentComment)}
+          style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #B5606A', background: '#F8E9EB', color: '#A63E4C', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
+          <XCircle size={44} /> NG
         </button>
-
-        {/* 2. なるほど */}
-        <button
-          className="quick-feedback-btn"
-          onClick={() => {
-            const msg = '[なるほど] 今の説明とても分かりやすくて腑に落ちました！';
-            setStudentComment(msg);
-            handleSend('ok', msg);
-          }}
-          style={{
-            padding: '1.5rem 0.5rem',
-            borderRadius: '18px',
-            border: '1px solid rgba(106, 148, 120, 0.15)',
-            background: 'rgba(106, 148, 120, 0.08)',
-            color: '#6A9478',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.65rem',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-        >
-          <Lightbulb size={28} />
-          <span>なるほど！</span>
-        </button>
-
-        {/* 3. メモ待って */}
-        <button
-          className="quick-feedback-btn"
-          onClick={() => {
-            const msg = '[待って] メモを取っているので少し待ってください';
-            setStudentComment(msg);
-            handleSend('ng', msg);
-          }}
-          style={{
-            padding: '1.5rem 0.5rem',
-            borderRadius: '18px',
-            border: '1px solid rgba(181, 96, 106, 0.15)',
-            background: 'rgba(181, 96, 106, 0.08)',
-            color: '#B5606A',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.65rem',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-        >
-          <PenTool size={28} />
-          <span>メモ待って</span>
-        </button>
-
-        {/* 4. わからない */}
-        <button
-          className="quick-feedback-btn"
-          onClick={() => {
-            const msg = '[SOS] 説明が難しくて理解が追いついていません';
-            setStudentComment(msg);
-            handleSend('ng', msg);
-          }}
-          style={{
-            padding: '1.5rem 0.5rem',
-            borderRadius: '18px',
-            border: '1px solid rgba(181, 96, 106, 0.15)',
-            background: 'rgba(181, 96, 106, 0.08)',
-            color: '#B5606A',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.65rem',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-        >
-          <HelpCircle size={28} />
-          <span>むずかしい</span>
-        </button>
-
-        {/* 5. 声が遠い */}
-        <button
-          className="quick-feedback-btn"
-          onClick={() => {
-            const msg = '[音響SOS] マイクの音声が遠い・聞き取りにくいです';
-            setStudentComment(msg);
-            handleSend('ng', msg);
-          }}
-          style={{
-            padding: '1.5rem 0.5rem',
-            borderRadius: '18px',
-            border: '1px solid rgba(181, 96, 106, 0.15)',
-            background: 'rgba(181, 96, 106, 0.08)',
-            color: '#B5606A',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.65rem',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-        >
-          <Volume2 size={28} />
-          <span>声が遠い</span>
-        </button>
-
-        {/* 6. 空調 */}
-        <button
-          className="quick-feedback-btn"
-          onClick={() => {
-            const msg = '[環境SOS] 教室の空調（暑い/寒い）の調整をお願いしたいです';
-            setStudentComment(msg);
-            handleSend('ng', msg);
-          }}
-          style={{
-            padding: '1.5rem 0.5rem',
-            borderRadius: '18px',
-            border: '1px solid rgba(100, 116, 139, 0.15)',
-            background: 'rgba(100, 116, 139, 0.08)',
-            color: '#475569',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.65rem',
-            fontWeight: 800,
-            fontSize: '0.95rem',
-            whiteSpace: 'nowrap',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-        >
-          <Thermometer size={28} />
-          <span>暑い・寒い</span>
+        <button className="quick-feedback-btn" onClick={() => handleSend('ok', studentComment)}
+          style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #6A9478', background: '#E8F3EC', color: '#397B50', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
+          <CheckCircle2 size={44} /> OK
         </button>
       </fieldset>
 
