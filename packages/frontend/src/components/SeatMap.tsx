@@ -46,7 +46,7 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
 
     const gridTemplateColumns = React.useMemo(() => {
       return shrinkCols
-        .map((isShrink) => isShrink ? '44px' : 'minmax(120px, 1fr)')
+        .map((isShrink) => isShrink ? '22px' : '60px')
         .join(' ');
     }, [shrinkCols]);
 
@@ -57,17 +57,16 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
     }, [emptyRows]);
 
     return (
-      <div className="grid-container-card grid-massive-container" style={{ overflowX: 'auto', width: '100%' }}>
+      <div className="grid-container-card grid-massive-container" style={{ overflowX: 'auto', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box', alignSelf: 'flex-start' }}>
         <div
           className="monitor-seat-grid"
           style={{
             display: 'grid',
             gridTemplateColumns,
             gridTemplateRows,
-            gap: '12px',
-            width: '100%',
-            maxWidth: '100%',
-            margin: '0 auto',
+            gap: '6px',
+            width: 'max-content',
+            margin: 0,
           }}
         >
           {Array.from({ length: 12 }).map((_, y) => {
