@@ -361,6 +361,44 @@ describe('Backend API (Dependency Injection & Repository Pattern) Tests', () => 
       expect((await mockSeatClaimRepo.get('test-room-uuid-1','1,1'))?.studentId).toBe('STU001');
     });
 
+    it('does not leak student names in occupancy and reserves teacher-only eviction', async () => {
+      const occupancy = await testApp.request('/api/rooms/test-room-uuid-1/occupied-seats');
+      expect(occupancy.status).toBe(200);
+      expect(await occupancy.json()).toEqual({ occupiedSeats: ['1,1'] });
+      expect((await testApp.request('/api/rooms/test-room-uuid-1/seat-occupants')).status).toBe(401);
+
+      const teacherHeaders = await teacherAuthorization();
+      const teacherView = await testApp.request('/api/rooms/test-room-uuid-1/seat-occupants', { headers: teacherHeaders });
+      expect(teacherView.status).toBe(200);
+      expect(await teacherView.json()).toEqual({
+        occupants: [{ seatId: '1,1', studentId: 'STU001', studentName: 'Claim Name' }],
+      });
+      const removed = await testApp.request('/api/rooms/test-room-uuid-1/seats/1%2C1', {
+        method: 'DELETE', headers: teacherHeaders,
+      });
+      expect(removed.status).toBe(200);
+      expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(0);
+      const reclaimed = await testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${await tokenFor('STU002')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seatId: '1,1' }),
+      });
+      expect(reclaimed.status).toBe(201);
+    });
+
+    it('rejects claiming another seat using the identity of an already seated student', async () => {
+      await mockRepo.update('test-room-uuid-1', {
+        name: '物理実験室', grid: [{ x: 1, y: 1, type: 'student' }, { x: 2, y: 2, type: 'student' }], isActive: true,
+      });
+      const response = await testApp.request('/api/rooms/test-room-uuid-1/seat-claim', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${await tokenFor('STU001')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seatId: '2,2' }),
+      });
+      expect(response.status).toBe(409);
+      expect((await mockSeatClaimRepo.list('test-room-uuid-1'))).toHaveLength(1);
+    });
+
     it('atomically gives a free seat to just one concurrent student', async () => {
       await mockSeatClaimRepo.releaseByTeacher('test-room-uuid-1','1,1');
       const [a,b]=await Promise.all(['STU003','STU004'].map(async id => {
