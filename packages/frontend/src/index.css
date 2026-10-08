@@ -1266,3 +1266,69 @@ body {
 .quick-feedback-btn:active {
   transform: scale(0.92) translateY(1px) !important;
 }
+
+/* Monitoring workspace width follows the classroom + QR, not the viewport. */
+.monitor-page-shell {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+}
+.monitor-page-shell .app-header {
+  padding: 0.75rem 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.monitor-page-shell .header-controls {
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.monitor-page-shell .header-title {
+  font-size: 1.2rem;
+}
+.monitor-page-shell .mode-toggle-btn {
+  padding: 0.45rem 0.6rem;
+}
+.monitor-page-shell .monitor-main-content {
+  margin: 0;
+}
+.monitor-dashboard-grid {
+  display: grid;
+  grid-template-columns: max-content 270px;
+  grid-template-areas:
+    "controls controls"
+    "seats qr"
+    "comments comments";
+  gap: 1.25rem 1.5rem;
+  width: max-content;
+  max-width: 100%;
+  align-items: start;
+}
+.monitor-control-region { grid-area: controls; min-width: 0; }
+.monitor-seat-region { grid-area: seats; min-width: 0; }
+.monitor-qr-region { grid-area: qr; min-width: 0; }
+.monitor-comments-region { grid-area: comments; min-width: 0; width: 100%; }
+.monitor-comments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.monitor-comments-card .feed-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Narrow viewports stack QR and comments; keep classroom coordinates intact. */
+@media (max-width: 980px) {
+  .monitor-page-shell { width: 100%; }
+  .monitor-dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+  .monitor-dashboard-grid > * { width: 100%; max-width: 100%; }
+  .monitor-seat-region { overflow-x: auto; }
+  .monitor-qr-region { width: 270px; }
+  .monitor-page-shell .header-controls { justify-content: flex-start; }
+}
