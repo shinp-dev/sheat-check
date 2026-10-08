@@ -139,7 +139,7 @@ export function useTeacherRealtime({
 
           // A seat change or disconnect must not erase previously received comments.
           // Anonymous and named posts are separate messages, even from the same seat.
-          if (typeof payload.comment === 'string' && payload.comment.trim()) {
+          if ((isComment || payload.status !== 'none') && typeof payload.comment === 'string' && payload.comment.trim()) {
             const logItem: RealtimeLog = {
               id: crypto.randomUUID(),
               studentName: payload.anonymous ? '匿名' : (payload.studentName || '匿名'),
