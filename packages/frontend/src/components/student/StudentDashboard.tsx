@@ -120,6 +120,18 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
         </div>
       )}
 
+      {/* The two quick status buttons come first; comments remain optional. */}
+      <fieldset disabled={isSending} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <button className="quick-feedback-btn" onClick={() => handleSend('ng')}
+          style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #B5606A', background: '#F8E9EB', color: '#A63E4C', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
+          <XCircle size={44} /> NG
+        </button>
+        <button className="quick-feedback-btn" onClick={() => handleSend('ok')}
+          style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #6A9478', background: '#E8F3EC', color: '#397B50', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
+          <CheckCircle2 size={44} /> OK
+        </button>
+      </fieldset>
+
       {/* Comments are sent separately from the seat status. */}
       <div>
         <label htmlFor="student-feedback-comment" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 700 }}>
@@ -149,16 +161,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = React.memo(({
         {commentSendError && <p role="alert" style={{ color: '#B5606A', fontSize: '0.85rem' }}>{commentSendError}</p>}
         {commentSent && <p role="status" style={{ color: '#397B50', fontSize: '0.85rem' }}>✓ コメント送信済み</p>}
       </div>
-      <fieldset disabled={isSending} style={{ border: 0, padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        <button className="quick-feedback-btn" onClick={() => handleSend('ng')}
-          style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #B5606A', background: '#F8E9EB', color: '#A63E4C', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
-          <XCircle size={44} /> NG
-        </button>
-        <button className="quick-feedback-btn" onClick={() => handleSend('ok')}
-          style={{ minHeight: '170px', borderRadius: '20px', border: '2px solid #6A9478', background: '#E8F3EC', color: '#397B50', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', fontSize: '1.3rem', fontWeight: 800, cursor: 'pointer' }}>
-          <CheckCircle2 size={44} /> OK
-        </button>
-      </fieldset>
+
 
       {/* Change seat fallback (Only active when Teacher's seatLock is false!) */}
       <button
