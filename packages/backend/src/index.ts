@@ -226,7 +226,7 @@ const routes = app
 
   .get('/api/rooms/:id/seat-occupants', requireTeacher, async (c) => {
     try {
-      const id = c.req.param('id');
+      const id = c.req.param('id') || '';
       if (!(await c.get('roomRepo').exists(id))) return c.json({ error: 'Room not found' }, 404);
       const claims = await c.get('seatClaimRepo').list(id);
       return c.json({ occupants: claims.map(({ seatId, studentId, studentName }) => ({ seatId, studentId, studentName })) });
@@ -234,10 +234,10 @@ const routes = app
   })
 
   .delete('/api/rooms/:id/seats/:seatId', requireTeacher, async (c) => {
-    const seatId = c.req.param('seatId');
+    const seatId = c.req.param('seatId') || '';
     if (!SeatCoordinateSchema.safeParse(seatId).success) return c.json({ error: 'Invalid seat' }, 400);
     try {
-      const removed = await c.get('seatClaimRepo').releaseByTeacher(c.req.param('id'), seatId);
+      const removed = await c.get('seatClaimRepo').releaseByTeacher(c.req.param('id') || '', seatId);
       return c.json({ success: true, removed });
     } catch (err) { return internalError(c, 'Could not clear seat', err); }
   })
