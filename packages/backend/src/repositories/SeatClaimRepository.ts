@@ -11,7 +11,7 @@ export interface SeatClaimRepository {
   get(roomId: string, seatId: string): Promise<SeatClaim | null>;
   tryClaim(claim: SeatClaim): Promise<boolean>;
   release(roomId: string, seatId: string, studentId: string, claimToken: string): Promise<boolean>;
-  releaseByTeacher(roomId: string, seatId: string): Promise<boolean>;
+  releaseByTeacher(roomId: string, seatId: string): Promise<string | null>;
   verify(roomId: string, seatId: string, studentId: string, claimToken: string): Promise<boolean>;
 }
 
@@ -57,11 +57,13 @@ export class D1SeatClaimRepository implements SeatClaimRepository {
     return result.meta.changes === 1;
   }
 
-  async releaseByTeacher(roomId: string, seatId: string): Promise<boolean> {
-    const result = await this.db.prepare(
-      'DELETE FROM seat_claims WHERE room_id = ? AND seat_id = ?',
-    ).bind(roomId, seatId).run();
-    return result.meta.changes === 1;
+  async releaseByTeacher(roomId: string, seatId: string): Promise<string | null> {
+    // Atomic DELETE RETURNING identifies the exact claim that was removed, even
+    // if another student claims the seat immediately afterward.
+    const removed = await this.db.prepare(
+      'DELETE FROM seat_claims WHERE room_id = ? AND seat_id = ? RETURNING claim_token',
+    ).bind(roomId, seatId).first<{ claim_token: string }>();
+    return removed?.claim_token ?? null;
   }
 
   async verify(roomId: string, seatId: string, studentId: string, claimToken: string): Promise<boolean> {
