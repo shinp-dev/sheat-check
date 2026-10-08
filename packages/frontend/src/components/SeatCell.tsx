@@ -118,7 +118,6 @@ export const SeatCell = React.memo(({
       role={liveStatus && cellType === 'student' ? 'button' : undefined}
       tabIndex={liveStatus && cellType === 'student' ? 0 : undefined}
       aria-label={liveStatus && cellType === 'student' ? `座席 ${coordKey} の詳細を表示` : undefined}
-      title={liveStatus && cellType === 'student' ? `${liveStatus.name}（${liveStatus.studentId || '学籍番号不明'}）` : undefined}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={getCellClassNameMassive()}
@@ -134,17 +133,37 @@ export const SeatCell = React.memo(({
         <div className={`cell-item ${cellType} ${cellType === 'student' && liveStatus ? `student-live-${liveStatus.status}` : ''}`}>
           {cellType === 'student' && liveStatus ? (
             <>
-              {/* Compact monitoring label; detailed identity is available on selection. */}
-              <span className="monitor-seat-number" style={{
-                fontSize: '1rem',
-                fontWeight: 800,
-                fontFamily: 'monospace',
-                textAlign: 'center',
-                lineHeight: 1,
-                whiteSpace: 'nowrap',
-              }}>
-                {liveStatus.studentId ? liveStatus.studentId.slice(-2) : '--'}
-              </span>
+              {/* Show the student's name by default, and only the short ID while hovered. */}
+              {isHovered ? (
+                <span className="monitor-seat-number" style={{
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  fontFamily: 'monospace',
+                  textAlign: 'center',
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                }}>
+                  {liveStatus.studentId ? liveStatus.studentId.slice(-2) : '--'}
+                </span>
+              ) : (
+                <span className="monitor-seat-name" style={{
+                  display: 'block',
+                  width: '100%',
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  padding: '0 2px',
+                  boxSizing: 'border-box',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  textAlign: 'center',
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {liveStatus.name}
+                </span>
+              )}
 
               {/* Individual Student Eviction (Kick) Button */}
               {onRemoveLiveStatus && isHovered && (
