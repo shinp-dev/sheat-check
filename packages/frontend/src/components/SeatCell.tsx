@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDroppable } from '@dnd-kit/core';
-import { User, GraduationCap, XCircle, DoorOpen, X } from 'lucide-react';
+import { User, GraduationCap, XCircle, DoorOpen } from 'lucide-react';
 import { GridItem, LiveSeatStatus } from '@my-app/shared';
 
 interface SeatCellProps {
@@ -10,7 +10,7 @@ interface SeatCellProps {
   cellType?: GridItem['type'];
   liveStatus?: LiveSeatStatus;
   onCycle: (x: number, y: number) => void;
-  onRemoveLiveStatus?: (key: string) => void;
+  onRemoveLiveStatus?: (key: string) => void | boolean | Promise<boolean>;
   massive?: boolean;
   isEmptyRow?: boolean;
   isShrinkCol?: boolean;
@@ -29,6 +29,7 @@ export const SeatCell = React.memo(({
 }: SeatCellProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isEvicting, setIsEvicting] = useState(false);
   const { isOver, setNodeRef } = useDroppable({
     id: `cell-${x}-${y}`,
     data: { x, y },
@@ -165,47 +166,6 @@ export const SeatCell = React.memo(({
                 </span>
               )}
 
-              {/* Individual Student Eviction (Kick) Button */}
-              {onRemoveLiveStatus && isHovered && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm(`${liveStatus.name} さんをこの席から退室させますか？`)) {
-                      onRemoveLiveStatus(coordKey);
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: '-6px',
-                    right: '-6px',
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ef4444',
-                    color: '#ffffff',
-                    border: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                    padding: 0,
-                    zIndex: 10,
-                    transition: 'background-color 0.2s',
-                  }}
-                  title="この席を空席にする"
-                  aria-label={`${liveStatus.name} さんをこの席から退室させる`}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#dc2626';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#ef4444';
-                  }}
-                >
-                  <X size={12} strokeWidth={2.5} />
-                </button>
-              )}
             </>
           ) : (
             getIcon()
@@ -235,6 +195,22 @@ export const SeatCell = React.memo(({
             <div>氏名：{liveStatus.name}</div>
             <div>学籍番号：{liveStatus.studentId || '不明'}</div>
             <div>座席：{coordKey}</div>
+            {onRemoveLiveStatus && (
+              <button type="button" className="btn btn-secondary" disabled={isEvicting}
+                onClick={async () => {
+                  if (!window.confirm(`${liveStatus.name} さんの席を空けますか？`)) return;
+                  setIsEvicting(true);
+                  try {
+                    const success = await onRemoveLiveStatus(coordKey);
+                    if (success !== false) setIsDetailsOpen(false);
+                  } finally {
+                    setIsEvicting(false);
+                  }
+                }}
+              >
+                {isEvicting ? '処理中...' : '席を空ける'}
+              </button>
+            )}
             <button type="button" autoFocus className="btn btn-secondary" onClick={() => setIsDetailsOpen(false)}>閉じる</button>
           </div>
         </div>,
