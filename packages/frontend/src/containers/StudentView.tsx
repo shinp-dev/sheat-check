@@ -82,7 +82,7 @@ export const StudentView: React.FC<StudentViewProps> = React.memo(({
         </div>
       )}
       
-      <div className="student-card">
+      <div className={studentStage === 'dashboard' ? 'student-card student-feedback-artwork' : 'student-card'}>
         {studentStage === 'config' && (
           <StudentConfig
             supabase={supabase}
