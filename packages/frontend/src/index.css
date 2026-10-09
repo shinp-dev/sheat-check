@@ -1447,3 +1447,18 @@ body {
 }
 
 /* The header, QR and responses stay on opaque surfaces for legibility. */
+
+
+/* Student feedback only: Caravaggio's "Supper at Emmaus" (1601).
+   Keep OK/NG actions and comment fields on their existing solid surfaces.
+   Source and licensing: docs/student-background-artwork.md */
+.student-view-container .student-card.student-feedback-artwork {
+  --student-feedback-artwork: url("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Supper_at_Emmaus-Caravaggio_%281601%29.jpg/3840px-Supper_at_Emmaus-Caravaggio_%281601%29.jpg");
+  background-color: #fff;
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.91), rgba(255, 255, 255, 0.96)),
+    var(--student-feedback-artwork);
+  background-position: center, center 30%;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
