@@ -1424,3 +1424,26 @@ body {
   display: block;
   white-space: nowrap;
 }
+
+
+/* Teacher monitoring: Caravaggio's "The Calling of Saint Matthew".
+   This uses a 3840px Wikimedia Commons rendition of a public-domain work.
+   Keep the image atmospheric, not a competing foreground element.
+   Source/licensing details: docs/monitor-background-artwork.md */
+.monitor-page-shell {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(rgba(248, 250, 252, 0.85), rgba(248, 250, 252, 0.88)),
+    url("https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/The_Calling_of_Saint_Matthew-Caravaggo_%281599-1600%29.jpg/3840px-The_Calling_of_Saint_Matthew-Caravaggo_%281599-1600%29.jpg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+}
+
+/* The seat grid used to have an opaque white card: let just enough of the
+   canvas show through without compromising seat outlines and check-in states. */
+.monitor-page-shell .monitor-seat-region .grid-container-card.grid-massive-container {
+  background-color: rgba(255, 255, 255, 0.42);
+}
+
+/* The header, QR and responses stay on opaque surfaces for legibility. */

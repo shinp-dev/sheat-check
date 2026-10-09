@@ -53,7 +53,7 @@ export const TeacherMonitorPage: React.FC = () => {
   };
 
   return (
-    <div className="monitor-page-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, rgba(107, 140, 174, 0.08) 0%, rgba(248, 250, 252, 0) 50%)' }}>
+    <div className="monitor-page-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <TeacherHeader activePage="monitor" subtitle="みんなの様子" onLogout={handleLogout} />
 
       <main className="main-content monitor-main-content" style={{
