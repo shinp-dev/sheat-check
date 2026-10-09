@@ -1427,10 +1427,17 @@ body {
 
 
 /* Teacher monitoring: Caravaggio's "The Calling of Saint Matthew".
-   This uses a 3840px Wikimedia Commons rendition of a public-domain work.
-   Keep the image atmospheric, not a competing foreground element.
+   The artwork belongs to the classroom dashboard, not the entire page:
+   on tall/mobile viewports the image must end with the classroom and must
+   never continue through the blank area beneath it.
    Source/licensing details: docs/monitor-background-artwork.md */
 .monitor-page-shell {
+  background-color: #f8fafc;
+}
+
+/* This grid is content-height (unlike the min-height: 100vh page shell).
+   Keep the artwork inside the classroom controls, seats and comment rail. */
+.monitor-page-shell .monitor-dashboard-grid {
   background-color: #f8fafc;
   background-image:
     linear-gradient(rgba(248, 250, 252, 0.85), rgba(248, 250, 252, 0.88)),
@@ -1440,13 +1447,11 @@ body {
   background-position: center center;
 }
 
-/* The seat grid used to have an opaque white card: let just enough of the
-   canvas show through without compromising seat outlines and check-in states. */
+/* Keep the existing translucent classroom panel; controls and QR remain
+   opaque, while the artwork stops at the bottom of the dashboard grid. */
 .monitor-page-shell .monitor-seat-region .grid-container-card.grid-massive-container {
   background-color: rgba(255, 255, 255, 0.42);
 }
-
-/* The header, QR and responses stay on opaque surfaces for legibility. */
 
 
 /* Student feedback only: Caravaggio's "Supper at Emmaus" (1601).
