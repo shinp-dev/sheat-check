@@ -56,8 +56,8 @@ export const TeacherMonitorPage: React.FC = () => {
     <div className="monitor-page-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <TeacherHeader activePage="monitor" subtitle="みんなの様子" onLogout={handleLogout} />
 
-      <main className="main-content monitor-main-content" style={{
-        display: 'flex', flexDirection: 'column', padding: '1rem',
+      <main className={`main-content monitor-main-content${session.roomId ? ' has-classroom' : ''}`} style={{
+        display: 'flex', flexDirection: 'column',
         width: '100%', maxWidth: '100%', gap: '1rem',
       }}>
         {session.roomId ? (

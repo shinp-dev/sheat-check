@@ -74,7 +74,7 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
     const gridTemplateRows = React.useMemo(() => {
       return emptyRows
         .slice(0, visibleRowCount)
-        .map((isEmpty) => isEmpty ? '8px' : '44px')
+        .map((isEmpty) => isEmpty ? '8px' : 'var(--monitor-seat-row-height, 44px)')
         .join(' ');
     }, [emptyRows, visibleRowCount]);
 
@@ -86,7 +86,7 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
             display: 'grid',
             gridTemplateColumns,
             gridTemplateRows,
-            gap: '6px',
+            gap: 'var(--monitor-seat-gap, 6px)',
             width: 'max-content',
             margin: 0,
           }}
@@ -105,7 +105,7 @@ export const SeatMap = React.memo(({ grid, liveStatuses, onCycle, onRemoveLiveSt
                   style={{
                     gridColumnStart: x + 1,
                     gridRowStart: y + 1,
-                    height: isEmptyR ? '8px' : '44px',
+                    height: isEmptyR ? '8px' : 'var(--monitor-seat-row-height, 44px)',
                     width: '100%',
                     display: 'flex',
                     alignItems: 'center',

@@ -1274,9 +1274,6 @@ body {
   min-width: 0;
 }
 .monitor-page-shell .app-header {
-  /* Keep the monitoring page in normal document flow. A sticky header can
-     make vertical scrolling feel like the classroom is jumping underneath it. */
-  position: static;
   padding: 0.75rem 1rem;
   gap: 0.75rem;
   flex-wrap: wrap;
@@ -1293,6 +1290,10 @@ body {
 }
 .monitor-page-shell .monitor-main-content {
   margin: 0;
+  padding: 1rem;
+}
+.monitor-page-shell .monitor-main-content.has-classroom {
+  padding: 1rem 0 0 1rem;
 }
 .monitor-dashboard-grid {
   display: grid;
@@ -1304,6 +1305,7 @@ body {
   width: max-content;
   max-width: 100%;
   align-items: start;
+  padding: 0 0.75rem 0.75rem 0;
 }
 .monitor-control-region { grid-area: controls; min-width: 0; }
 .monitor-seat-region { grid-area: seats; min-width: 0; }
@@ -1390,7 +1392,8 @@ body {
 /* Preserve the classroom layout on narrow screens; the compact workspace
    scrolls horizontally instead of stacking the QR underneath the seats. */
 @media (max-width: 980px) {
-  .monitor-page-shell { width: max-content; max-width: none; }
+  .monitor-page-shell { width: 100%; max-width: 100%; }
+  .monitor-page-shell .monitor-main-content { overflow-x: auto; }
   .monitor-dashboard-grid { max-width: none; }
   .monitor-seat-region { overflow-x: auto; }
   .monitor-page-shell .header-controls { justify-content: flex-start; }
@@ -1454,6 +1457,23 @@ body {
    opaque, while the artwork stops at the bottom of the dashboard grid. */
 .monitor-page-shell .monitor-seat-region .grid-container-card.grid-massive-container {
   background-color: rgba(255, 255, 255, 0.42);
+}
+
+/* Keep the full classroom visible on short desktop viewports. */
+@media (max-height: 660px) {
+  .monitor-page-shell .monitor-main-content.has-classroom {
+    padding-top: 0.5rem;
+  }
+
+  .monitor-dashboard-grid {
+    row-gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .monitor-page-shell .monitor-seat-grid {
+    --monitor-seat-row-height: 40px;
+    --monitor-seat-gap: 5px;
+  }
 }
 
 
