@@ -135,7 +135,7 @@ export const TeacherView: React.FC<TeacherViewProps> = React.memo(({
   mode = 'layout',
 }) => {
   return (
-    <main className="main-content">
+    <main className={`main-content${mode === 'layout' ? ' layout-main-content' : ''}`}>
       
       {/* Left Control Sidebar - Only in layout mode */}
       {mode === 'layout' && (
