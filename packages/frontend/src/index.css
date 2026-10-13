@@ -1274,6 +1274,9 @@ body {
   min-width: 0;
 }
 .monitor-page-shell .app-header {
+  /* Keep the monitoring page in normal document flow. A sticky header can
+     make vertical scrolling feel like the classroom is jumping underneath it. */
+  position: static;
   padding: 0.75rem 1rem;
   gap: 0.75rem;
   flex-wrap: wrap;
